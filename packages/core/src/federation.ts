@@ -20,7 +20,7 @@ export function composeFederation(subgraphs: SubgraphInput[]): CompositionResult
         success: false,
         errors: result.errors.map((e) => ({
           message: e.message,
-          source: e.source ?? undefined,
+          source: e.source ? String(e.source) : undefined,
         })),
       };
     }

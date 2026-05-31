@@ -1,10 +1,35 @@
-# Local planning documents intentionally kept out of GitHub
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build
+dist/
+packages/*/dist/
+*.tsbuildinfo
+
+# Env
+.env
+.env.*
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Test
+playwright-report/
+test-results/
+coverage/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local planning documents (uploaded separately)
 PRODUCT_REQUIREMENTS.md
 IMPLEMENTATION_HANDOFF.md
 CODEX_GOAL_PROMPT.md
 RELEASE_QUALIFICATION_CHECKLIST.md
-
-# Legacy planning document names
 AGENT_HANDOFF.md
 CODEX_GOLD_PROMPTS.md
 CODEX_GOAL_PROMPTS.md

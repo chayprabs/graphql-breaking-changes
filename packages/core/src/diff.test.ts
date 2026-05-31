@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { diff, operationCoverage } from "./index.js";
 import {
-  FEDERATION_BROKEN_SUBGRAPH,
+  FEDERATION_CONFLICT_SUBGRAPH,
   FEDERATION_SUBGRAPHS,
   SAMPLE_NEW_SDL,
   SAMPLE_OLD_SDL,
@@ -45,8 +45,8 @@ describe("composeFederation", () => {
 
   it("raises composition errors for invalid subgraph set", () => {
     const result = composeFederation([
-      { name: "users", sdl: FEDERATION_BROKEN_SUBGRAPH },
-      { name: "products", sdl: FEDERATION_SUBGRAPHS.products },
+      { name: "users", sdl: FEDERATION_SUBGRAPHS.users },
+      { name: "conflict", sdl: FEDERATION_CONFLICT_SUBGRAPH },
     ]);
     expect(result.success).toBe(false);
     expect(result.errors.length).toBeGreaterThan(0);

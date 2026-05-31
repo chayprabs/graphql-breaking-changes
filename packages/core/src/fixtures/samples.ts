@@ -54,15 +54,11 @@ type Product @key(fields: "id") {
 }`,
 };
 
-export const FEDERATION_BROKEN_SUBGRAPH = `extend schema
-  @link(url: "https://specs.apollo.dev/federation/v2.0", import: ["@key"])
-
-type Query {
-  users: [User!]!
-}
+/** Conflicting @key on shared type across subgraphs triggers composition errors */
+export const FEDERATION_CONFLICT_SUBGRAPH = `extend schema
+  @link(url: "https://specs.apollo.dev/federation/v2.0", import: ["@key", "@external", "@requires"])
 
 type User @key(fields: "id") {
-  id: ID!
-  name: String!
-  # Missing required federation field resolver hints - invalid @key
+  id: ID! @external
+  email: String! @requires(fields: "id")
 }`;

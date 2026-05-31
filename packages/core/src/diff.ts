@@ -1,18 +1,16 @@
-import { diff as inspectorDiff, CriticalityLevel } from "@graphql-inspector/core";
-import { GraphQLSchema } from "graphql";
+import {
+  findBreakingChanges,
+  findDangerousChanges,
+  GraphQLSchema,
+  isEnumType,
+  isInputObjectType,
+  isInterfaceType,
+  isObjectType,
+  isScalarType,
+  isUnionType,
+} from "graphql";
 import { parseSchemaInput } from "./parse.js";
 import type { DiffOptions, SchemaChange, Severity } from "./types.js";
-
-function mapCriticality(level: CriticalityLevel): Severity {
-  switch (level) {
-    case CriticalityLevel.Breaking:
-      return "breaking";
-    case CriticalityLevel.Dangerous:
-      return "dangerous";
-    default:
-      return "safe";
-  }
-}
 
 function levenshtein(a: string, b: string): number {
   const m = a.length;
@@ -46,33 +44,147 @@ function suggestRename(path: string, removedNames: string[]): string | undefined
   return best?.name;
 }
 
+function extractPath(description: string): string {
+  const match = description.match(/^[^:]+:\s*([^\s]+)/);
+  return match?.[1] ?? description;
+}
+
+function findSafeChanges(oldSchema: GraphQLSchema, newSchema: GraphQLSchema): SchemaChange[] {
+  const safe: SchemaChange[] = [];
+  const oldTypes = oldSchema.getTypeMap();
+  const newTypes = newSchema.getTypeMap();
+
+  for (const name of Object.keys(newTypes)) {
+    if (name.startsWith("__")) continue;
+    if (!oldTypes[name]) {
+      safe.push({
+        type: "TYPE_ADDED",
+        path: name,
+        severity: "safe",
+        message: `Type '${name}' was added`,
+      });
+      continue;
+    }
+
+    const oldType = oldTypes[name];
+    const newType = newTypes[name];
+
+    if (isObjectType(oldType) && isObjectType(newType)) {
+      for (const fieldName of Object.keys(newType.getFields())) {
+        if (!oldType.getFields()[fieldName]) {
+          safe.push({
+            type: "FIELD_ADDED",
+            path: `${name}.${fieldName}`,
+            severity: "safe",
+            message: `Field '${fieldName}' was added to object type '${name}'`,
+          });
+        }
+      }
+    }
+
+    if (isInterfaceType(oldType) && isInterfaceType(newType)) {
+      for (const fieldName of Object.keys(newType.getFields())) {
+        if (!oldType.getFields()[fieldName]) {
+          safe.push({
+            type: "FIELD_ADDED",
+            path: `${name}.${fieldName}`,
+            severity: "safe",
+            message: `Field '${fieldName}' was added to interface '${name}'`,
+          });
+        }
+      }
+    }
+
+    if (isEnumType(oldType) && isEnumType(newType)) {
+      const oldValues = new Set(oldType.getValues().map((v) => v.name));
+      for (const v of newType.getValues()) {
+        if (!oldValues.has(v.name)) {
+          safe.push({
+            type: "ENUM_VALUE_ADDED",
+            path: `${name}.${v.name}`,
+            severity: "safe",
+            message: `Enum value '${v.name}' was added to enum '${name}'`,
+          });
+        }
+      }
+    }
+
+    if (isInputObjectType(oldType) && isInputObjectType(newType)) {
+      for (const fieldName of Object.keys(newType.getFields())) {
+        if (!oldType.getFields()[fieldName]) {
+          safe.push({
+            type: "INPUT_FIELD_ADDED",
+            path: `${name}.${fieldName}`,
+            severity: "safe",
+            message: `Input field '${fieldName}' was added to input object '${name}'`,
+          });
+        }
+      }
+    }
+
+    if (isUnionType(oldType) && isUnionType(newType)) {
+      const oldMembers = new Set(oldType.getTypes().map((t) => t.name));
+      for (const member of newType.getTypes()) {
+        if (!oldMembers.has(member.name)) {
+          safe.push({
+            type: "UNION_MEMBER_ADDED",
+            path: `${name}.${member.name}`,
+            severity: "safe",
+            message: `Member '${member.name}' was added to union '${name}'`,
+          });
+        }
+      }
+    }
+
+    if (isScalarType(oldType) && isScalarType(newType) && oldType.description !== newType.description) {
+      safe.push({
+        type: "DESCRIPTION_CHANGED",
+        path: name,
+        severity: "safe",
+        message: `Description changed for scalar '${name}'`,
+      });
+    }
+  }
+
+  return safe;
+}
+
 export function diffSchemas(
   oldSchema: GraphQLSchema,
   newSchema: GraphQLSchema,
-  _opts?: DiffOptions,
+  opts?: DiffOptions,
 ): SchemaChange[] {
-  const changes = inspectorDiff(oldSchema, newSchema);
-  const removedFieldNames = changes
-    .filter((c) => c.type.includes("Removed") && c.path)
-    .map((c) => c.path!.split(".").pop()!)
+  const breaking = findBreakingChanges(oldSchema, newSchema).map((c) => ({
+    type: c.type,
+    path: extractPath(c.description),
+    severity: "breaking" as Severity,
+    message: c.description,
+  }));
+
+  const dangerous = findDangerousChanges(oldSchema, newSchema).map((c) => ({
+    type: c.type,
+    path: extractPath(c.description),
+    severity: "dangerous" as Severity,
+    message: c.description,
+  }));
+
+  const safe = opts?.ignoreDescriptionChanges
+    ? findSafeChanges(oldSchema, newSchema).filter((c) => c.type !== "DESCRIPTION_CHANGED")
+    : findSafeChanges(oldSchema, newSchema);
+
+  const removedNames = breaking
+    .filter((c) => c.type.includes("REMOVED") || c.type.includes("Removed"))
+    .map((c) => c.path.split(".").pop()!)
     .filter(Boolean);
 
-  return changes.map((change) => {
-    const path = change.path ?? "";
-    const severity = mapCriticality(change.criticality.level);
-    const suggestedRename =
-      severity === "breaking" && change.type.includes("Removed")
-        ? suggestRename(path, removedFieldNames)
-        : undefined;
-
-    return {
-      type: change.type,
-      path,
-      severity,
-      message: change.message,
-      suggestedRename,
-    };
-  });
+  return [...breaking, ...dangerous, ...safe].map((change) => ({
+    ...change,
+    suggestedRename:
+      change.severity === "breaking" &&
+      (change.type.includes("REMOVED") || change.message.toLowerCase().includes("removed"))
+        ? suggestRename(change.path, removedNames)
+        : undefined,
+  }));
 }
 
 export function diff(oldSdl: string, newSdl: string, opts?: DiffOptions): SchemaChange[] {

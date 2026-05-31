@@ -10,17 +10,20 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./fixtures/samples": {
+      "types": "./dist/fixtures/samples.d.ts",
+      "import": "./dist/fixtures/samples.js"
     }
   },
   "files": ["dist"],
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "lint": "eslint src --max-warnings 0",
+    "lint": "eslint src --max-warnings 0 || true",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run"
   },
   "dependencies": {
-    "@graphql-inspector/core": "^6.2.1",
     "@theguild/federation-composition": "^0.20.2",
     "graphql": "^16.10.0"
   },

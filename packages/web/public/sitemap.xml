@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>/</loc></url>
+  <url><loc>/graphql-diff</loc></url>
+  <url><loc>/graphql-breaking-check</loc></url>
+  <url><loc>/graphql-operation-coverage</loc></url>
+  <url><loc>/apollo-federation-check</loc></url>
+  <url><loc>/graphql-schema-lint</loc></url>
+  <url><loc>/privacy</loc></url>
+  <url><loc>/terms</loc></url>
+</urlset>

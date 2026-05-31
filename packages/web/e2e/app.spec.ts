@@ -7,10 +7,20 @@ test("home page loads and runs sample diff", async ({ page }) => {
   await expect(page.getByText(/Breaking:/)).toBeVisible({ timeout: 10000 });
 });
 
-test("seo routes render playground", async ({ page }) => {
-  await page.goto("/graphql-diff");
-  await expect(page.getByRole("button", { name: "Run diff" })).toBeVisible();
-});
+const SEO_ROUTES = [
+  "/graphql-diff",
+  "/graphql-breaking-check",
+  "/graphql-operation-coverage",
+  "/apollo-federation-check",
+  "/graphql-schema-lint",
+];
+
+for (const route of SEO_ROUTES) {
+  test(`seo route ${route} renders playground`, async ({ page }) => {
+    await page.goto(route);
+    await expect(page.getByRole("button", { name: /Run diff|Check operations|Compose subgraphs|Lint schema/ })).toBeVisible();
+  });
+}
 
 test("legal pages load", async ({ page }) => {
   await page.goto("/privacy");

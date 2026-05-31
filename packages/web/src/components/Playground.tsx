@@ -199,7 +199,7 @@ export function Playground({ initialTab = "diff" }: PlaygroundProps) {
           {tab === "federation" && "Compose subgraphs"}
           {tab === "lint" && "Lint schema"}
         </button>
-        {tab === "diff" && ran && changes.length > 0 && (
+        {tab === "diff" && ran && (
           <>
             <ExportButton
               label="JSON"

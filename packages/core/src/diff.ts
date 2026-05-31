@@ -60,11 +60,17 @@ function suggestRenameForRemoval(
 }
 
 export function extractPath(description: string, changeType: string): string {
+  const scalarRemoved = description.match(/^Standard scalar (\w+) was removed/i);
+  if (scalarRemoved) return scalarRemoved[1];
+
+  const optionalArgAdded = description.match(/^An optional arg (\w+) on (\S+) was added/i);
+  if (optionalArgAdded) return `${optionalArgAdded[2]}.${optionalArgAdded[1]}`;
+
+  const requiredArgAdded = description.match(/^A required arg (\w+) on (\S+) was added/i);
+  if (requiredArgAdded) return `${requiredArgAdded[2]}.${requiredArgAdded[1]}`;
+
   const fieldRemoved = description.match(/^(\w+(?:\.\w+)+)\s+was removed\.?$/);
   if (fieldRemoved) return fieldRemoved[1];
-
-  const typeRemoved = description.match(/^(\w+)\s+was removed\.?$/);
-  if (typeRemoved && changeType.includes("TYPE")) return typeRemoved[1];
 
   const argRemoved = description.match(/^(\w+\.\w+)\s+arg\s+(\w+)\s+was removed\.?$/);
   if (argRemoved) return `${argRemoved[1]}.${argRemoved[2]}`;
@@ -75,7 +81,10 @@ export function extractPath(description: string, changeType: string): string {
   const directiveRemoved = description.match(/^(\w+)\s+directive was removed\.?$/);
   if (directiveRemoved) return directiveRemoved[1];
 
-  return description.split(" ")[0] ?? description;
+  const typeRemoved = description.match(/^(\w+)\s+was removed\.?$/);
+  if (typeRemoved && changeType.includes("TYPE")) return typeRemoved[1];
+
+  return description;
 }
 
 function findSafeChanges(oldSchema: GraphQLSchema, newSchema: GraphQLSchema): SchemaChange[] {
@@ -98,14 +107,32 @@ function findSafeChanges(oldSchema: GraphQLSchema, newSchema: GraphQLSchema): Sc
     const oldType = oldTypes[name];
     const newType = newTypes[name];
 
+    if (oldType.description !== newType.description) {
+      safe.push({
+        type: "DESCRIPTION_CHANGED",
+        path: name,
+        severity: "safe",
+        message: `Description changed for type '${name}'`,
+      });
+    }
+
     if (isObjectType(oldType) && isObjectType(newType)) {
       for (const fieldName of Object.keys(newType.getFields())) {
-        if (!oldType.getFields()[fieldName]) {
+        const oldField = oldType.getFields()[fieldName];
+        const newField = newType.getFields()[fieldName];
+        if (!oldField) {
           safe.push({
             type: "FIELD_ADDED",
             path: `${name}.${fieldName}`,
             severity: "safe",
             message: `Field '${fieldName}' was added to object type '${name}'`,
+          });
+        } else if (oldField.description !== newField.description) {
+          safe.push({
+            type: "DESCRIPTION_CHANGED",
+            path: `${name}.${fieldName}`,
+            severity: "safe",
+            message: `Description changed for field '${name}.${fieldName}'`,
           });
         }
       }
@@ -113,12 +140,21 @@ function findSafeChanges(oldSchema: GraphQLSchema, newSchema: GraphQLSchema): Sc
 
     if (isInterfaceType(oldType) && isInterfaceType(newType)) {
       for (const fieldName of Object.keys(newType.getFields())) {
-        if (!oldType.getFields()[fieldName]) {
+        const oldField = oldType.getFields()[fieldName];
+        const newField = newType.getFields()[fieldName];
+        if (!oldField) {
           safe.push({
             type: "FIELD_ADDED",
             path: `${name}.${fieldName}`,
             severity: "safe",
             message: `Field '${fieldName}' was added to interface '${name}'`,
+          });
+        } else if (oldField.description !== newField.description) {
+          safe.push({
+            type: "DESCRIPTION_CHANGED",
+            path: `${name}.${fieldName}`,
+            severity: "safe",
+            message: `Description changed for field '${name}.${fieldName}'`,
           });
         }
       }
@@ -165,14 +201,6 @@ function findSafeChanges(oldSchema: GraphQLSchema, newSchema: GraphQLSchema): Sc
       }
     }
 
-    if (isScalarType(oldType) && isScalarType(newType) && oldType.description !== newType.description) {
-      safe.push({
-        type: "DESCRIPTION_CHANGED",
-        path: name,
-        severity: "safe",
-        message: `Description changed for scalar '${name}'`,
-      });
-    }
   }
 
   return safe;

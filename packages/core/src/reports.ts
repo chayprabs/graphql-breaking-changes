@@ -13,6 +13,33 @@ export function reportToJson(payload: ReportPayload): string {
   return JSON.stringify({ ...payload, generatedAt: new Date().toISOString() }, null, 2);
 }
 
+function appendCompositionMarkdown(
+  lines: string[],
+  composition: NonNullable<ReportPayload["composition"]>,
+): void {
+  lines.push(`## Federation Composition`, "");
+  if (composition.success) {
+    lines.push("Composition **succeeded**.", "");
+  } else {
+    lines.push("Composition **failed**.", "");
+    for (const e of composition.errors) {
+      lines.push(`- ${e.message}`);
+    }
+    lines.push("");
+  }
+}
+
+function appendSubgraphMarkdown(lines: string[], subgraphDiffs: SubgraphDiffResult[]): void {
+  lines.push(`## Subgraph diffs`, "");
+  for (const sg of subgraphDiffs) {
+    lines.push(`### ${sg.name} (${sg.changes.length} changes)`, "");
+    for (const c of sg.changes.slice(0, 50)) {
+      lines.push(`- [${c.severity}] ${c.path}: ${c.message}`);
+    }
+    lines.push("");
+  }
+}
+
 export function reportToMarkdown(payload: ReportPayload): string {
   const lines = ["# GraphQLGuard Report", "", `Generated: ${new Date().toISOString()}`, ""];
   const changes = payload.changes ?? [];
@@ -64,14 +91,11 @@ export function reportToMarkdown(payload: ReportPayload): string {
   }
 
   if (payload.subgraphDiffs?.length) {
-    lines.push(`## Subgraph diffs`, "");
-    for (const sg of payload.subgraphDiffs) {
-      lines.push(`### ${sg.name} (${sg.changes.length} changes)`, "");
-      for (const c of sg.changes.slice(0, 20)) {
-        lines.push(`- [${c.severity}] ${c.path}: ${c.message}`);
-      }
-      lines.push("");
-    }
+    appendSubgraphMarkdown(lines, payload.subgraphDiffs);
+  }
+
+  if (payload.composition) {
+    appendCompositionMarkdown(lines, payload.composition);
   }
 
   return lines.join("\n");
@@ -107,6 +131,42 @@ export function reportToHtml(payload: ReportPayload): string {
     extra += `<h2>Lint</h2><ul>${payload.lint.map((i) => `<li>${escapeHtml(i.rule)} — ${escapeHtml(i.path)}: ${escapeHtml(i.message)}</li>`).join("")}</ul>`;
   }
 
+  if (payload.subgraphDiffs?.length) {
+    extra += `<h2>Subgraph diffs</h2>`;
+    for (const sg of payload.subgraphDiffs) {
+      extra += `<h3>${escapeHtml(sg.name)} (${sg.changes.length} changes)</h3><ul>`;
+      extra += sg.changes
+        .slice(0, 50)
+        .map(
+          (c) =>
+            `<li><strong>[${c.severity}]</strong> ${escapeHtml(c.path)}: ${escapeHtml(c.message)}</li>`,
+        )
+        .join("");
+      extra += `</ul>`;
+    }
+  }
+
+  if (payload.composition) {
+    extra += `<h2>Federation Composition</h2>`;
+    if (payload.composition.success) {
+      extra += `<p class="safe">Composition succeeded.</p>`;
+    } else {
+      extra += `<p class="breaking">Composition failed.</p><ul>`;
+      extra += payload.composition.errors
+        .map((e) => `<li>${escapeHtml(e.message)}</li>`)
+        .join("");
+      extra += `</ul>`;
+    }
+  }
+
+  const tableSection =
+    changes.length > 0
+      ? `<table>
+    <thead><tr><th>Severity</th><th>Path</th><th>Type</th><th>Message</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`
+      : "";
+
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -123,28 +183,12 @@ export function reportToHtml(payload: ReportPayload): string {
   </style>
 </head>
 <body>
-  <h1>GraphQL Schema Diff Report</h1>
+  <h1>GraphQLGuard Report</h1>
   <p>Breaking: ${counts.breaking} | Dangerous: ${counts.dangerous} | Safe: ${counts.safe}</p>
   ${extra}
-  <table>
-    <thead><tr><th>Severity</th><th>Path</th><th>Type</th><th>Message</th></tr></thead>
-    <tbody>${rows}</tbody>
-  </table>
+  ${tableSection}
 </body>
 </html>`;
-}
-
-/** @deprecated Use reportToJson({ changes }) */
-export function reportToJsonChanges(changes: SchemaChange[]): string {
-  return reportToJson({ changes });
-}
-
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
 }
 
 export function downloadBlob(content: string, filename: string, mime: string): void {
@@ -156,4 +200,12 @@ export function downloadBlob(content: string, filename: string, mime: string): v
   a.download = filename;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }

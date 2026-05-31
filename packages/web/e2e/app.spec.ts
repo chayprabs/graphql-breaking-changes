@@ -22,6 +22,21 @@ test("federation compose mode works", async ({ page }) => {
   });
 });
 
+test("federation subgraph diff mode works", async ({ page }) => {
+  await page.goto("/apollo-federation-check");
+  await page.getByRole("button", { name: "Subgraph diff" }).click();
+  await page.getByRole("button", { name: "Diff subgraphs" }).click();
+  await expect(page.getByText(/users/)).toBeVisible({ timeout: 20000 });
+});
+
+test("swap schemas clears stale diff results", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Run diff" }).click();
+  await expect(page.getByText(/Breaking:/)).toBeVisible({ timeout: 20000 });
+  await page.getByRole("button", { name: "Swap schemas" }).click();
+  await expect(page.getByText(/Breaking:/)).not.toBeVisible();
+});
+
 const SEO_ROUTES = [
   "/graphql-diff",
   "/graphql-breaking-check",
@@ -33,7 +48,9 @@ const SEO_ROUTES = [
 for (const route of SEO_ROUTES) {
   test(`seo route ${route} renders playground`, async ({ page }) => {
     await page.goto(route);
-    await expect(page.getByRole("button", { name: /Run diff|Check operations|Compose subgraphs|Lint schema/ })).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: /Run diff|Check operations|Compose subgraphs|Lint schema/ }),
+    ).toBeVisible();
   });
 }
 

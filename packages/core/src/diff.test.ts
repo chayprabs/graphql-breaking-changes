@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { diff, operationCoverage } from "./index.js";
+import { diff, extractPath } from "./diff.js";
+import { operationCoverage } from "./operation-coverage.js";
 import {
   FEDERATION_CONFLICT_SUBGRAPH,
   FEDERATION_SUBGRAPHS,
@@ -9,6 +10,20 @@ import {
 } from "./fixtures/samples.js";
 import { composeFederation } from "./federation.js";
 
+describe("extractPath", () => {
+  it("parses optional arg additions", () => {
+    expect(extractPath("An optional arg y on Query.f was added.", "OPTIONAL_ARG_ADDED")).toBe(
+      "Query.f.y",
+    );
+  });
+
+  it("parses standard scalar removal", () => {
+    expect(
+      extractPath("Standard scalar ID was removed because it is not used.", "TYPE_REMOVED"),
+    ).toBe("ID");
+  });
+});
+
 describe("diff", () => {
   it("A1: detects breaking changes in sample SDL pair", () => {
     const changes = diff(SAMPLE_OLD_SDL, SAMPLE_NEW_SDL);
@@ -17,6 +32,14 @@ describe("diff", () => {
     expect(changes.some((c) => c.path === "User.email" && c.severity === "breaking")).toBe(true);
     const nameRemoval = changes.find((c) => c.path === "User.name" && c.type === "FIELD_REMOVED");
     expect(nameRemoval?.suggestedRename).toBe("fullName");
+  });
+
+  it("reports description-only changes as safe", () => {
+    const changes = diff(
+      `"""old""" type Query { hello: String }`,
+      `"""new""" type Query { hello: String }`,
+    );
+    expect(changes.some((c) => c.type === "DESCRIPTION_CHANGED" && c.path === "Query")).toBe(true);
   });
 });
 

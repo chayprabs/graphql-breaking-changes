@@ -25,17 +25,23 @@ export function SchemaEditor({
   const [dragOver, setDragOver] = useState(false);
 
   const readFile = useCallback(
-    (file: File) => {
+    (file: File, onError?: (msg: string) => void) => {
       const reader = new FileReader();
       reader.onload = () => onChange(String(reader.result ?? ""));
+      reader.onerror = () => onError?.(`Failed to read file: ${file.name}`);
       reader.readAsText(file);
     },
     [onChange],
   );
 
   const onFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) readFile(file);
+    const files = e.target.files;
+    if (!files?.length) return;
+    if (onFilesDrop) {
+      onFilesDrop(files);
+      return;
+    }
+    readFile(files[0]);
   };
 
   const onDrop = (e: React.DragEvent) => {

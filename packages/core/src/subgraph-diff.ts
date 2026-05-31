@@ -7,10 +7,23 @@ export interface SubgraphDiffResult {
 }
 
 /** F4.2 — diff each subgraph SDL in isolation (by matching name). */
+function assertUniqueNames(subgraphs: SubgraphInput[], label: string): void {
+  const seen = new Set<string>();
+  for (const sg of subgraphs) {
+    if (seen.has(sg.name)) {
+      throw new Error(`Duplicate subgraph name "${sg.name}" in ${label} set.`);
+    }
+    seen.add(sg.name);
+  }
+}
+
 export function diffSubgraphs(
   oldSubgraphs: SubgraphInput[],
   newSubgraphs: SubgraphInput[],
 ): SubgraphDiffResult[] {
+  assertUniqueNames(oldSubgraphs, "old");
+  assertUniqueNames(newSubgraphs, "new");
+
   const newByName = new Map(newSubgraphs.map((s) => [s.name, s]));
   const results: SubgraphDiffResult[] = [];
 

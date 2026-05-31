@@ -12,6 +12,7 @@ export {
   type ReportPayload,
 } from "./reports.js";
 export { formatSdl } from "./format.js";
+export { parseSubgraphBlocks } from "./subgraph-parse.js";
 export { parseSchemaInput, schemaToSdl } from "./parse.js";
 export type {
   CompositionError,

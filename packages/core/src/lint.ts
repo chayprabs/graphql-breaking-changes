@@ -34,7 +34,11 @@ export function lintSchemaObject(schema: GraphQLSchema): LintIssue[] {
     }
 
     if (
-      (isObjectType(type) || isInterfaceType(type) || isInputObjectType(type)) &&
+      (isObjectType(type) ||
+        isInterfaceType(type) ||
+        isInputObjectType(type) ||
+        isEnumType(type) ||
+        isUnionType(type)) &&
       !type.description
     ) {
       issues.push({

@@ -1,6 +1,7 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   formatSdl,
+  parseSubgraphBlocks,
   reportToHtml,
   reportToJson,
   reportToMarkdown,
@@ -25,19 +26,6 @@ import { Download, Play, ArrowLeftRight, Trash2, Wand2 } from "lucide-react";
 
 type Tab = "diff" | "coverage" | "federation" | "lint";
 type FederationMode = "compose" | "subgraph-diff";
-
-function parseSubgraphs(text: string) {
-  return text
-    .split(/\n---\n/)
-    .map((p) => p.trim())
-    .filter(Boolean)
-    .map((part) => {
-      const nameMatch = part.match(/^(\w+):\s*\n?/);
-      const name = nameMatch?.[1] ?? "subgraph";
-      const sdl = part.replace(/^(\w+):\s*\n?/, "").trim();
-      return { name, sdl };
-    });
-}
 
 interface PlaygroundProps {
   initialTab?: Tab;
@@ -67,6 +55,34 @@ export function Playground({ initialTab = "diff" }: PlaygroundProps) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [ran, setRan] = useState(false);
+  const [diffRan, setDiffRan] = useState(false);
+  const [coverageRan, setCoverageRan] = useState(false);
+  const [federationRan, setFederationRan] = useState(false);
+  const [lintRan, setLintRan] = useState(false);
+  const prevOldSdl = useRef(oldSdl);
+  const prevNewSdl = useRef(newSdl);
+
+  const resetAllResults = useCallback(() => {
+    setChanges([]);
+    setCoverage(null);
+    setComposition(null);
+    setSubgraphDiffs([]);
+    setLintIssues([]);
+    setRan(false);
+    setDiffRan(false);
+    setCoverageRan(false);
+    setFederationRan(false);
+    setLintRan(false);
+  }, []);
+
+  useEffect(() => {
+    if (diffRan && (prevOldSdl.current !== oldSdl || prevNewSdl.current !== newSdl)) {
+      setDiffRan(false);
+      setChanges([]);
+    }
+    prevOldSdl.current = oldSdl;
+    prevNewSdl.current = newSdl;
+  }, [oldSdl, newSdl, diffRan]);
 
   const counts = useMemo(
     () => ({
@@ -79,18 +95,18 @@ export function Playground({ initialTab = "diff" }: PlaygroundProps) {
 
   const reportPayload = useCallback((): ReportPayload => {
     const payload: ReportPayload = {};
-    if (tab === "diff" || changes.length) payload.changes = changes;
-    if (coverage) payload.coverage = coverage;
-    if (lintIssues.length) payload.lint = lintIssues;
-    if (subgraphDiffs.length) payload.subgraphDiffs = subgraphDiffs;
-    if (composition) {
+    if (diffRan) payload.changes = changes;
+    if (coverageRan && coverage) payload.coverage = coverage;
+    if (lintRan && lintIssues.length) payload.lint = lintIssues;
+    if (federationRan && subgraphDiffs.length) payload.subgraphDiffs = subgraphDiffs;
+    if (federationRan && composition) {
       payload.composition = {
         success: composition.success,
         errors: composition.errors,
       };
     }
     return payload;
-  }, [tab, changes, coverage, lintIssues, subgraphDiffs, composition]);
+  }, [diffRan, coverageRan, lintRan, federationRan, changes, coverage, lintIssues, subgraphDiffs, composition]);
 
   const exportReport = (format: "json" | "md" | "html") => {
     const payload = reportPayload();
@@ -109,6 +125,7 @@ export function Playground({ initialTab = "diff" }: PlaygroundProps) {
     try {
       const result = await run<SchemaChange[]>("diff", oldSdl, newSdl);
       setChanges(result);
+      setDiffRan(true);
       setRan(true);
       setTab("diff");
     } catch (e) {
@@ -132,6 +149,7 @@ export function Playground({ initialTab = "diff" }: PlaygroundProps) {
         newSdl,
       );
       setCoverage(result);
+      setCoverageRan(true);
       setRan(true);
       setTab("coverage");
     } catch (e) {
@@ -148,19 +166,20 @@ export function Playground({ initialTab = "diff" }: PlaygroundProps) {
       if (federationMode === "compose") {
         const result = await run<CompositionResult>(
           "composeFederation",
-          parseSubgraphs(subgraphs),
+          parseSubgraphBlocks(subgraphs),
         );
         setComposition(result);
         setSubgraphDiffs([]);
       } else {
         const result = await run<SubgraphDiffResult[]>(
           "diffSubgraphs",
-          parseSubgraphs(oldSubgraphs),
-          parseSubgraphs(newSubgraphs),
+          parseSubgraphBlocks(oldSubgraphs),
+          parseSubgraphBlocks(newSubgraphs),
         );
         setSubgraphDiffs(result);
         setComposition(null);
       }
+      setFederationRan(true);
       setRan(true);
       setTab("federation");
     } catch (e) {
@@ -176,6 +195,7 @@ export function Playground({ initialTab = "diff" }: PlaygroundProps) {
     try {
       const result = await run<LintIssue[]>("lintSchema", newSdl);
       setLintIssues(result);
+      setLintRan(true);
       setRan(true);
       setTab("lint");
     } catch (e) {
@@ -207,13 +227,15 @@ export function Playground({ initialTab = "diff" }: PlaygroundProps) {
       `users:\n${FEDERATION_SUBGRAPHS.users.replace("name: String!", "displayName: String!")}`,
     );
     setError(null);
-    setRan(false);
+    resetAllResults();
   };
 
   const swapSchemas = () => {
     const tmp = oldSdl;
     setOldSdl(newSdl);
     setNewSdl(tmp);
+    setDiffRan(false);
+    setChanges([]);
   };
 
   const formatSchema = (which: "old" | "new") => {
@@ -221,6 +243,8 @@ export function Playground({ initialTab = "diff" }: PlaygroundProps) {
       if (which === "old") setOldSdl(formatSdl(oldSdl));
       else setNewSdl(formatSdl(newSdl));
       setError(null);
+      setDiffRan(false);
+      setChanges([]);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     }
@@ -233,11 +257,13 @@ export function Playground({ initialTab = "diff" }: PlaygroundProps) {
           new Promise<string>((resolve, reject) => {
             const reader = new FileReader();
             reader.onload = () => resolve(String(reader.result ?? ""));
-            reader.onerror = () => reject(reader.error);
+            reader.onerror = () => reject(new Error(`Failed to read file: ${f.name}`));
             reader.readAsText(f);
           }),
       ),
-    ).then((parts) => setOperations(parts.join("\n\n")));
+    )
+      .then((parts) => setOperations(parts.join("\n\n")))
+      .catch((e) => setError(e instanceof Error ? e.message : String(e)));
   };
 
   return (
@@ -420,19 +446,19 @@ export function Playground({ initialTab = "diff" }: PlaygroundProps) {
         </div>
       )}
 
-      {ran && tab === "diff" && <ResultsPanel counts={counts} changes={changes} />}
+      {diffRan && tab === "diff" && <ResultsPanel counts={counts} changes={changes} />}
 
-      {ran && tab === "coverage" && coverage && <CoveragePanel coverage={coverage} />}
+      {coverageRan && tab === "coverage" && coverage && <CoveragePanel coverage={coverage} />}
 
-      {ran && tab === "federation" && federationMode === "compose" && composition && (
+      {federationRan && tab === "federation" && federationMode === "compose" && composition && (
         <CompositionPanel composition={composition} />
       )}
 
-      {ran && tab === "federation" && federationMode === "subgraph-diff" && (
+      {federationRan && tab === "federation" && federationMode === "subgraph-diff" && (
         <SubgraphDiffPanel diffs={subgraphDiffs} />
       )}
 
-      {ran && tab === "lint" && <LintPanel issues={lintIssues} />}
+      {lintRan && tab === "lint" && <LintPanel issues={lintIssues} />}
     </div>
   );
 }

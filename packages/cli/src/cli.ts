@@ -9,10 +9,15 @@ if (!oldPath || !newPath) {
   process.exit(1);
 }
 
-const oldSdl = readFileSync(oldPath, "utf8");
-const newSdl = readFileSync(newPath, "utf8");
-const changes = diff(oldSdl, newSdl);
-const breaking = changes.filter((c) => c.severity === "breaking").length;
+try {
+  const oldSdl = readFileSync(oldPath, "utf8");
+  const newSdl = readFileSync(newPath, "utf8");
+  const changes = diff(oldSdl, newSdl);
+  const breaking = changes.filter((c) => c.severity === "breaking").length;
 
-console.log(reportToMarkdown({ changes }));
-process.exit(breaking > 0 ? 1 : 0);
+  console.log(reportToMarkdown({ changes }));
+  process.exit(breaking > 0 ? 1 : 0);
+} catch (err) {
+  console.error(err instanceof Error ? err.message : String(err));
+  process.exit(1);
+}

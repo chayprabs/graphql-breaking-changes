@@ -82,12 +82,16 @@ export function reportToMarkdown(payload: ReportPayload): string {
     lines.push("");
   }
 
-  if (payload.lint?.length) {
+  if (payload.lint) {
     lines.push(`## Lint (${payload.lint.length})`, "");
-    for (const issue of payload.lint) {
-      lines.push(`- ${issue.rule} — ${issue.path}: ${issue.message}`);
+    if (payload.lint.length === 0) {
+      lines.push("No lint issues found.", "");
+    } else {
+      for (const issue of payload.lint) {
+        lines.push(`- ${issue.rule} — ${issue.path}: ${issue.message}`);
+      }
+      lines.push("");
     }
-    lines.push("");
   }
 
   if (payload.subgraphDiffs?.length) {
@@ -159,6 +163,11 @@ export function reportToHtml(payload: ReportPayload): string {
     }
   }
 
+  const summarySection =
+    changes.length > 0
+      ? `<p>Breaking: ${counts.breaking} | Dangerous: ${counts.dangerous} | Safe: ${counts.safe}</p>`
+      : "";
+
   const tableSection =
     changes.length > 0
       ? `<table>
@@ -166,6 +175,10 @@ export function reportToHtml(payload: ReportPayload): string {
     <tbody>${rows}</tbody>
   </table>`
       : "";
+
+  if (payload.lint && payload.lint.length === 0 && !extra.includes("Lint")) {
+    extra += `<h2>Lint</h2><p>No lint issues found.</p>`;
+  }
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -184,7 +197,7 @@ export function reportToHtml(payload: ReportPayload): string {
 </head>
 <body>
   <h1>GraphQLGuard Report</h1>
-  <p>Breaking: ${counts.breaking} | Dangerous: ${counts.dangerous} | Safe: ${counts.safe}</p>
+  ${summarySection}
   ${extra}
   ${tableSection}
 </body>

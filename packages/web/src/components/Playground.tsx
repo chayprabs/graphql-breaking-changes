@@ -54,13 +54,16 @@ export function Playground({ initialTab = "diff" }: PlaygroundProps) {
   const [lintIssues, setLintIssues] = useState<LintIssue[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [ran, setRan] = useState(false);
   const [diffRan, setDiffRan] = useState(false);
   const [coverageRan, setCoverageRan] = useState(false);
   const [federationRan, setFederationRan] = useState(false);
   const [lintRan, setLintRan] = useState(false);
   const prevOldSdl = useRef(oldSdl);
   const prevNewSdl = useRef(newSdl);
+  const prevOperations = useRef(operations);
+  const prevSubgraphs = useRef(subgraphs);
+  const prevOldSubgraphs = useRef(oldSubgraphs);
+  const prevNewSubgraphs = useRef(newSubgraphs);
 
   const resetAllResults = useCallback(() => {
     setChanges([]);
@@ -68,7 +71,6 @@ export function Playground({ initialTab = "diff" }: PlaygroundProps) {
     setComposition(null);
     setSubgraphDiffs([]);
     setLintIssues([]);
-    setRan(false);
     setDiffRan(false);
     setCoverageRan(false);
     setFederationRan(false);
@@ -84,6 +86,40 @@ export function Playground({ initialTab = "diff" }: PlaygroundProps) {
     prevNewSdl.current = newSdl;
   }, [oldSdl, newSdl, diffRan]);
 
+  useEffect(() => {
+    if (
+      coverageRan &&
+      (prevOperations.current !== operations || prevNewSdl.current !== newSdl)
+    ) {
+      setCoverageRan(false);
+      setCoverage(null);
+    }
+    prevOperations.current = operations;
+  }, [operations, newSdl, coverageRan]);
+
+  useEffect(() => {
+    if (lintRan && prevNewSdl.current !== newSdl) {
+      setLintRan(false);
+      setLintIssues([]);
+    }
+  }, [newSdl, lintRan]);
+
+  useEffect(() => {
+    if (
+      federationRan &&
+      (prevSubgraphs.current !== subgraphs ||
+        prevOldSubgraphs.current !== oldSubgraphs ||
+        prevNewSubgraphs.current !== newSubgraphs)
+    ) {
+      setFederationRan(false);
+      setComposition(null);
+      setSubgraphDiffs([]);
+    }
+    prevSubgraphs.current = subgraphs;
+    prevOldSubgraphs.current = oldSubgraphs;
+    prevNewSubgraphs.current = newSubgraphs;
+  }, [subgraphs, oldSubgraphs, newSubgraphs, federationRan]);
+
   const counts = useMemo(
     () => ({
       breaking: changes.filter((c) => c.severity === "breaking").length,
@@ -97,7 +133,7 @@ export function Playground({ initialTab = "diff" }: PlaygroundProps) {
     const payload: ReportPayload = {};
     if (diffRan) payload.changes = changes;
     if (coverageRan && coverage) payload.coverage = coverage;
-    if (lintRan && lintIssues.length) payload.lint = lintIssues;
+    if (lintRan) payload.lint = lintIssues;
     if (federationRan && subgraphDiffs.length) payload.subgraphDiffs = subgraphDiffs;
     if (federationRan && composition) {
       payload.composition = {
@@ -107,6 +143,12 @@ export function Playground({ initialTab = "diff" }: PlaygroundProps) {
     }
     return payload;
   }, [diffRan, coverageRan, lintRan, federationRan, changes, coverage, lintIssues, subgraphDiffs, composition]);
+
+  const canExport =
+    diffRan ||
+    (coverageRan && coverage !== null) ||
+    lintRan ||
+    (federationRan && (composition !== null || subgraphDiffs.length > 0));
 
   const exportReport = (format: "json" | "md" | "html") => {
     const payload = reportPayload();
@@ -126,7 +168,6 @@ export function Playground({ initialTab = "diff" }: PlaygroundProps) {
       const result = await run<SchemaChange[]>("diff", oldSdl, newSdl);
       setChanges(result);
       setDiffRan(true);
-      setRan(true);
       setTab("diff");
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -150,7 +191,6 @@ export function Playground({ initialTab = "diff" }: PlaygroundProps) {
       );
       setCoverage(result);
       setCoverageRan(true);
-      setRan(true);
       setTab("coverage");
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -180,7 +220,6 @@ export function Playground({ initialTab = "diff" }: PlaygroundProps) {
         setComposition(null);
       }
       setFederationRan(true);
-      setRan(true);
       setTab("federation");
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -196,7 +235,6 @@ export function Playground({ initialTab = "diff" }: PlaygroundProps) {
       const result = await run<LintIssue[]>("lintSchema", newSdl);
       setLintIssues(result);
       setLintRan(true);
-      setRan(true);
       setTab("lint");
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -368,14 +406,24 @@ export function Playground({ initialTab = "diff" }: PlaygroundProps) {
           <div className="flex gap-2">
             <button
               type="button"
-              onClick={() => setFederationMode("compose")}
+              onClick={() => {
+                setFederationMode("compose");
+                setFederationRan(false);
+                setComposition(null);
+                setSubgraphDiffs([]);
+              }}
               className={`rounded-lg px-3 py-1 text-sm ${federationMode === "compose" ? "bg-blue-600 text-white" : "bg-white ring-1 ring-gray-200"}`}
             >
               Compose supergraph
             </button>
             <button
               type="button"
-              onClick={() => setFederationMode("subgraph-diff")}
+              onClick={() => {
+                setFederationMode("subgraph-diff");
+                setFederationRan(false);
+                setComposition(null);
+                setSubgraphDiffs([]);
+              }}
               className={`rounded-lg px-3 py-1 text-sm ${federationMode === "subgraph-diff" ? "bg-blue-600 text-white" : "bg-white ring-1 ring-gray-200"}`}
             >
               Subgraph diff
@@ -431,7 +479,7 @@ export function Playground({ initialTab = "diff" }: PlaygroundProps) {
                     : "Diff subgraphs"
                   : "Lint schema"}
         </button>
-        {ran && (
+        {canExport && (
           <>
             <ExportButton label="JSON" onClick={() => exportReport("json")} />
             <ExportButton label="Markdown" onClick={() => exportReport("md")} />

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseSchemaInput, formatSdl } from "./index.js";
+import { diff, parseSchemaInput, formatSdl } from "./index.js";
 import { buildSchema, introspectionFromSchema, lexicographicSortSchema } from "graphql";
 
 describe("parseSchemaInput", () => {
@@ -30,5 +30,15 @@ describe("formatSdl", () => {
   it("sorts and prints schema", () => {
     const formatted = formatSdl("type Query { z: String a: String }");
     expect(formatted).toContain("type Query");
+  });
+});
+
+describe("diff introspection vs SDL", () => {
+  it("avoids false description changes for equivalent schema", () => {
+    const sdl = "type Query { hello: String }";
+    const schema = lexicographicSortSchema(buildSchema(sdl));
+    const intro = introspectionFromSchema(schema);
+    const changes = diff(sdl, JSON.stringify({ data: intro }));
+    expect(changes.filter((c) => c.type === "DESCRIPTION_CHANGED")).toHaveLength(0);
   });
 });

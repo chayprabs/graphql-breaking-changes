@@ -74,7 +74,7 @@ const subgraphChanges = diffSubgraphs(oldSubgraphs, newSubgraphs);
 
 ```bash
 pnpm --filter @graphql-guard/cli build
-node packages/cli/dist/cli.js samples/small-old.graphql samples/small-new.graphql
+node packages/cli/dist/cli.js packages/web/public/samples/small-old.graphql packages/web/public/samples/small-new.graphql
 # exit code 1 if breaking changes exist
 ```
 

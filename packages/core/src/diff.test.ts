@@ -22,6 +22,28 @@ describe("extractPath", () => {
       extractPath("Standard scalar ID was removed because it is not used.", "TYPE_REMOVED"),
     ).toBe("ID");
   });
+
+  it("parses directive removal", () => {
+    expect(extractPath("auth was removed.", "DIRECTIVE_REMOVED")).toBe("auth");
+  });
+
+  it("parses enum value added", () => {
+    expect(extractPath("B was added to enum type E.", "VALUE_ADDED_TO_ENUM")).toBe("E.B");
+  });
+});
+
+describe("dedupeChanges", () => {
+  it("does not duplicate enum value as safe and dangerous", () => {
+    const changes = diff(
+      "enum E { A }",
+      "enum E { A B }",
+    );
+    const enumAdds = changes.filter((c) => c.path === "E.B" || c.message.includes("B was added"));
+    expect(enumAdds.filter((c) => c.severity === "safe" && c.type === "ENUM_VALUE_ADDED")).toHaveLength(
+      0,
+    );
+    expect(enumAdds.some((c) => c.severity === "dangerous")).toBe(true);
+  });
 });
 
 describe("diff", () => {

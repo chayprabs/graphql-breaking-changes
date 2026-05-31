@@ -32,6 +32,17 @@ function normalizeFieldName(name: string): string {
   return name.toLowerCase().replace(/[_-]/g, "");
 }
 
+function descriptionsMeaningfullyChanged(
+  old: string | null | undefined,
+  next: string | null | undefined,
+): boolean {
+  const o = old?.trim() ?? "";
+  const n = next?.trim() ?? "";
+  if (o === n) return false;
+  if (o === "" || n === "") return false;
+  return true;
+}
+
 function suggestRenameForRemoval(
   typeName: string,
   removedField: string,
@@ -58,32 +69,117 @@ function suggestRenameForRemoval(
   return best?.name;
 }
 
+/** Parse graphql-js change descriptions into stable paths. */
 export function extractPath(description: string, changeType: string): string {
-  const scalarRemoved = description.match(/^Standard scalar (\w+) was removed/i);
+  const d = description.trim();
+
+  const scalarRemoved = d.match(/^Standard scalar (\w+) was removed/i);
   if (scalarRemoved) return scalarRemoved[1];
 
-  const optionalArgAdded = description.match(/^An optional arg (\w+) on (\S+) was added/i);
+  const optionalArgAdded = d.match(/^An optional arg (\w+) on (\S+) was added/i);
   if (optionalArgAdded) return `${optionalArgAdded[2]}.${optionalArgAdded[1]}`;
 
-  const requiredArgAdded = description.match(/^A required arg (\w+) on (\S+) was added/i);
+  const requiredArgAdded = d.match(/^A required arg (\w+) on (\S+) was added/i);
   if (requiredArgAdded) return `${requiredArgAdded[2]}.${requiredArgAdded[1]}`;
 
-  const fieldRemoved = description.match(/^(\w+(?:\.\w+)+)\s+was removed\.?$/);
-  if (fieldRemoved) return fieldRemoved[1];
+  const requiredDirectiveArg = d.match(/^A required arg (\w+) on directive (\w+) was added/i);
+  if (requiredDirectiveArg) return `${requiredDirectiveArg[2]}.${requiredDirectiveArg[1]}`;
 
-  const argRemoved = description.match(/^(\w+\.\w+)\s+arg\s+(\w+)\s+was removed\.?$/);
+  const optionalInputField = d.match(/^An optional field (\w+) on input type (\w+) was added/i);
+  if (optionalInputField) return `${optionalInputField[2]}.${optionalInputField[1]}`;
+
+  const requiredInputField = d.match(/^A required field (\w+) on input type (\w+) was added/i);
+  if (requiredInputField) return `${requiredInputField[2]}.${requiredInputField[1]}`;
+
+  const enumValueAdded = d.match(/^(\w+) was added to enum type (\w+)\.?$/i);
+  if (enumValueAdded) return `${enumValueAdded[2]}.${enumValueAdded[1]}`;
+
+  const unionMemberAdded = d.match(/^(\w+) was added to union type (\w+)\.?$/i);
+  if (unionMemberAdded) return `${unionMemberAdded[2]}.${unionMemberAdded[1]}`;
+
+  const enumValueRemoved = d.match(/^(\w+) was removed from enum type (\w+)\.?$/i);
+  if (enumValueRemoved) return `${enumValueRemoved[2]}.${enumValueRemoved[1]}`;
+
+  const unionMemberRemoved = d.match(/^(\w+) was removed from union type (\w+)\.?$/i);
+  if (unionMemberRemoved) return `${unionMemberRemoved[2]}.${unionMemberRemoved[1]}`;
+
+  const argChangedKind = d.match(/^(\S+) arg (\w+) has changed type from/i);
+  if (argChangedKind) return `${argChangedKind[1]}.${argChangedKind[2]}`;
+
+  const fieldChangedKind = d.match(/^(\S+) changed type from/i);
+  if (fieldChangedKind) return fieldChangedKind[1];
+
+  const argDefaultChange = d.match(/^(\S+) arg (\w+) defaultValue/i);
+  if (argDefaultChange) return `${argDefaultChange[1]}.${argDefaultChange[2]}`;
+
+  const argRemoved = d.match(/^(\S+) arg (\w+) was removed/i);
   if (argRemoved) return `${argRemoved[1]}.${argRemoved[2]}`;
 
-  const enumRemoved = description.match(/^(\w+)\s+was removed from enum type (\w+)\.?$/);
-  if (enumRemoved) return `${enumRemoved[2]}.${enumRemoved[1]}`;
+  const directiveArgRemoved = d.match(/^(\w+) was removed from (\w+)\.?$/);
+  if (directiveArgRemoved && changeType.includes("DIRECTIVE_ARG")) {
+    return `${directiveArgRemoved[2]}.${directiveArgRemoved[1]}`;
+  }
 
-  const directiveRemoved = description.match(/^(\w+)\s+directive was removed\.?$/);
-  if (directiveRemoved) return directiveRemoved[1];
+  const directiveRemoved = d.match(/^(\w+) was removed\.?$/);
+  if (directiveRemoved && changeType.includes("DIRECTIVE") && !changeType.includes("ARG")) {
+    return directiveRemoved[1];
+  }
 
-  const typeRemoved = description.match(/^(\w+)\s+was removed\.?$/);
+  const directiveLocation = d.match(/^(\w+) was removed from (\w+)\.?$/);
+  if (directiveLocation && changeType.includes("LOCATION")) {
+    return `${directiveLocation[2]}.${directiveLocation[1]}`;
+  }
+
+  const repeatableRemoved = d.match(/^Repeatable flag was removed from (\w+)/i);
+  if (repeatableRemoved) return repeatableRemoved[1];
+
+  const ifaceRemoved = d.match(/^(\S+) no longer implements interface (\w+)/i);
+  if (ifaceRemoved) return `${ifaceRemoved[1]}.${ifaceRemoved[2]}`;
+
+  const ifaceAdded = d.match(/^(\w+) added to interfaces implemented by (\S+)/i);
+  if (ifaceAdded) return `${ifaceAdded[2]}.${ifaceAdded[1]}`;
+
+  const fieldRemoved = d.match(/^(\S+)\s+was removed\.?$/);
+  if (fieldRemoved && fieldRemoved[1].includes(".")) return fieldRemoved[1];
+
+  const typeRemoved = d.match(/^(\w+)\s+was removed\.?$/);
   if (typeRemoved && changeType.includes("TYPE")) return typeRemoved[1];
 
-  return description;
+  return d;
+}
+
+const DANGEROUS_SUPERSEDES_SAFE: Record<string, string[]> = {
+  VALUE_ADDED_TO_ENUM: ["ENUM_VALUE_ADDED"],
+  TYPE_ADDED_TO_UNION: ["UNION_MEMBER_ADDED"],
+  OPTIONAL_INPUT_FIELD_ADDED: ["INPUT_FIELD_ADDED"],
+};
+
+function dedupeChanges(changes: SchemaChange[]): SchemaChange[] {
+  const dangerous = changes.filter((c) => c.severity === "dangerous");
+  const removeIdx = new Set<number>();
+
+  for (let i = 0; i < changes.length; i++) {
+    const c = changes[i];
+    if (c.severity !== "safe") continue;
+
+    for (const d of dangerous) {
+      const superseded = DANGEROUS_SUPERSEDES_SAFE[d.type];
+      if (superseded?.includes(c.type) && c.path === d.path) {
+        removeIdx.add(i);
+        break;
+      }
+      if (
+        c.type === "TYPE_ADDED" &&
+        d.type === "TYPE_ADDED_TO_UNION" &&
+        (d.path === c.path || d.path.endsWith(`.${c.path}`))
+      ) {
+        removeIdx.add(i);
+        break;
+      }
+    }
+  }
+
+  return changes.filter((_, i) => !removeIdx.has(i));
 }
 
 function findSafeChanges(oldSchema: GraphQLSchema, newSchema: GraphQLSchema): SchemaChange[] {
@@ -106,7 +202,7 @@ function findSafeChanges(oldSchema: GraphQLSchema, newSchema: GraphQLSchema): Sc
     const oldType = oldTypes[name];
     const newType = newTypes[name];
 
-    if (oldType.description !== newType.description) {
+    if (descriptionsMeaningfullyChanged(oldType.description, newType.description)) {
       safe.push({
         type: "DESCRIPTION_CHANGED",
         path: name,
@@ -126,7 +222,7 @@ function findSafeChanges(oldSchema: GraphQLSchema, newSchema: GraphQLSchema): Sc
             severity: "safe",
             message: `Field '${fieldName}' was added to object type '${name}'`,
           });
-        } else if (oldField.description !== newField.description) {
+        } else if (descriptionsMeaningfullyChanged(oldField.description, newField.description)) {
           safe.push({
             type: "DESCRIPTION_CHANGED",
             path: `${name}.${fieldName}`,
@@ -148,7 +244,7 @@ function findSafeChanges(oldSchema: GraphQLSchema, newSchema: GraphQLSchema): Sc
             severity: "safe",
             message: `Field '${fieldName}' was added to interface '${name}'`,
           });
-        } else if (oldField.description !== newField.description) {
+        } else if (descriptionsMeaningfullyChanged(oldField.description, newField.description)) {
           safe.push({
             type: "DESCRIPTION_CHANGED",
             path: `${name}.${fieldName}`,
@@ -199,7 +295,6 @@ function findSafeChanges(oldSchema: GraphQLSchema, newSchema: GraphQLSchema): Sc
         }
       }
     }
-
   }
 
   return safe;
@@ -240,9 +335,10 @@ export function diffSchemas(
     ? findSafeChanges(oldSchema, newSchema).filter((c) => c.type !== "DESCRIPTION_CHANGED")
     : findSafeChanges(oldSchema, newSchema);
 
-  const addedByType = collectAddedFieldsByType(safe);
+  const merged = dedupeChanges([...breaking, ...dangerous, ...safe]);
+  const addedByType = collectAddedFieldsByType(merged.filter((c) => c.severity === "safe"));
 
-  return [...breaking, ...dangerous, ...safe].map((change) => {
+  return merged.map((change) => {
     if (change.type !== "FIELD_REMOVED" || change.severity !== "breaking") {
       return change;
     }

@@ -59,6 +59,8 @@ test("legal pages load", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Privacy Policy" })).toBeVisible();
   await page.goto("/terms");
   await expect(page.getByRole("heading", { name: "Terms & Conditions" })).toBeVisible();
+  await page.goto("/license");
+  await expect(page.getByRole("heading", { name: "License" })).toBeVisible();
 });
 
 test("external header links exist", async ({ page }) => {

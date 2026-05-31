@@ -19,6 +19,7 @@ export default function App() {
         <Route path="graphql-schema-lint" element={<SeoLandingPage mode="lint" />} />
         <Route path="privacy" element={<LegalPage type="privacy" />} />
         <Route path="terms" element={<LegalPage type="terms" />} />
+        <Route path="license" element={<LegalPage type="license" />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

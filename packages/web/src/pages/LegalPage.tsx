@@ -1,107 +1,198 @@
 const PRIVACY = `
-# Privacy Policy
-
+**Effective date:** May 31, 2026
 **Last updated:** May 31, 2026
 
-GraphQLGuard ("we", "the tool") is a browser-only application. Your GraphQL schemas, operation files, and diff results are processed entirely in your web browser. We do not operate a backend that receives, stores, or analyzes your schema data.
+This Privacy Policy describes how GraphQLGuard ("Service") handles information. The Operator is Chaitanya Prabuddha. By using the Service, you acknowledge this Policy.
 
-## What we do not collect
+## 1. Summary
 
-- We do not upload your SDL, introspection JSON, or operation files to our servers.
-- We do not use third-party analytics that transmit file contents or filenames.
-- We do not require an account to use the playground.
+GraphQLGuard is a browser-only tool. Schema text, introspection JSON, operations, and results are processed on your device. We do not operate a backend that receives your GraphQL content for normal playground use.
 
-## Local storage
+## 2. What we do not collect
 
-The app does not persist your schema data to any server. Editor content may be saved in your browser local storage on this device so you can continue later. Use "Clear saved data" in the playground to remove it.
+We do not intentionally collect, purchase, or sell your SDL, introspection JSON, operation files, diff results, or filenames. We do not use analytics that transmit schema content. No login is required.
 
-## Third-party links
+## 3. Local storage
 
-This site links to GitHub, social profiles, and external websites. Those services have their own privacy policies.
+Editor content may be stored in your browser local storage on this device. Use "Clear saved data" in the playground or your browser settings to remove it. We cannot access this data unless you send it to us voluntarily.
 
-## Disclaimer
+## 4. Hosting technical data
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. See the MIT License for full terms.
+If you visit a hosted copy of the site, infrastructure providers may process limited technical data (IP address, browser type, request logs) to deliver static files. We do not use this to reconstruct your schemas.
 
-## Contact
+## 5. GitHub and third parties
 
-For privacy questions, contact the repository owner via GitHub issues on the graphql-breaking-changes repository.
+Public GitHub interactions are governed by GitHub's policies. Do not post secrets or confidential schemas in public issues. External links have their own privacy practices.
+
+## 6. Your rights
+
+Depending on your location, you may have privacy rights regarding personal data. Because we generally do not hold your schema content, many requests will not apply to data you never sent us. You may contact a data protection authority in your region.
+
+## 7. Children
+
+The Service is not directed to children under 16. We do not knowingly collect children's personal information.
+
+## 8. Changes and contact
+
+We may update this Policy. Continued use after changes constitutes acceptance where permitted by law. Contact: GitHub issues on chayprabs/graphql-breaking-changes or www.chaitanyaprabuddha.com.
+
+## 9. Terms
+
+This Policy is incorporated into our Terms & Conditions. See the full Privacy Policy in the repository at PRIVACY_POLICY.md for complete wording.
 `;
 
 const TERMS = `
-# Terms & Conditions
-
+**Effective date:** May 31, 2026
 **Last updated:** May 31, 2026
 
-By using GraphQLGuard you agree to these terms.
+PLEASE READ CAREFULLY. THESE TERMS INCLUDE DISCLAIMERS OF WARRANTIES, LIMITATIONS OF LIABILITY, INDEMNIFICATION, AND (WHERE PERMITTED) ARBITRATION AND CLASS ACTION WAIVER.
 
-## Service description
+## 1. Agreement
 
-GraphQLGuard is a free, browser-based tool for comparing GraphQL schemas, checking operation coverage, federation composition, and linting. Results are informational only and do not constitute professional advice.
+These Terms are between you and Chaitanya Prabuddha ("Operator"), operating GraphQLGuard. By using the Service, you agree to these Terms and our Privacy Policy. You must be at least 18 years old (or age of majority). If you disagree, do not use the Service.
 
-## No warranty
+## 2. Service description
 
-THE TOOL IS PROVIDED "AS IS" AND "AS AVAILABLE" WITHOUT WARRANTIES OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT.
+GraphQLGuard compares GraphQL schemas and related checks for informational purposes only. It is not legal, security, compliance, or professional advice. Outputs may be wrong. You must independently verify all results before production use.
 
-## Limitation of liability
+## 3. No warranty
 
-TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE PROJECT MAINTAINERS AND CONTRIBUTORS SHALL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, OR ANY LOSS OF PROFITS, DATA, OR GOODWILL, ARISING FROM YOUR USE OF THIS TOOL, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
+TO THE FULLEST EXTENT PERMITTED BY LAW, THE SERVICE IS PROVIDED "AS IS" AND "AS AVAILABLE" WITHOUT WARRANTIES OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, NON-INFRINGEMENT, AND ACCURACY.
 
-## Your responsibility
+## 4. Limitation of liability
 
-You are solely responsible for:
+TO THE FULLEST EXTENT PERMITTED BY LAW, THE OPERATOR, CONTRIBUTORS, AND AFFILIATES SHALL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, OR LOSS OF PROFITS, DATA, OR GOODWILL, ARISING FROM USE OF THE SERVICE.
 
-- Verifying schema diff results before production deployments.
-- Ensuring you have rights to process any schemas you paste into the tool.
-- Compliance with your organization's policies and applicable laws.
+TOTAL LIABILITY FOR ALL CLAIMS SHALL NOT EXCEED THE GREATER OF USD $0 OR AMOUNTS YOU PAID US IN THE PRIOR 12 MONTHS (TYPICALLY ZERO). MANDATORY LAW MAY NOT ALLOW SOME LIMITATIONS; THEY APPLY TO THE MAXIMUM EXTENT PERMITTED.
 
-## Acceptable use
+## 5. Indemnification
 
-You may not use this tool to violate laws, infringe intellectual property, or attempt to disrupt hosted infrastructure.
+You agree to defend, indemnify, and hold harmless the Operator and contributors from claims arising from your use of the Service, your content, or your violation of these Terms or law.
 
-## Changes
+## 6. Your responsibilities
 
-We may update these terms. Continued use after changes constitutes acceptance.
+You are solely responsible for your inputs, your rights to process them, compliance with law and contracts, and all decisions based on outputs. Do not input unlawful content, malware, or unauthorized secrets.
 
-## Governing law
+## 7. Prohibited uses
 
-These terms are governed by the laws applicable in your jurisdiction of use, without regard to conflict-of-law principles.
+Do not violate law, infringe rights, attack infrastructure, or misuse the Service. Do not rely on outputs as sole basis for production changes without verification.
 
-## Contact
+## 8. Third parties and self-hosting
 
-Questions: open an issue on the GitHub repository.
+Third-party libraries and links are provided as-is. If you self-host or fork, you are responsible for security, logging, and compliance.
+
+## 9. Dispute resolution
+
+Contact us first for informal resolution. Except where mandatory consumer law provides otherwise, these Terms are governed by the laws of India, with exclusive jurisdiction in courts in India where permitted. Disputes may be resolved by binding individual arbitration where permitted. Class actions are waived to the extent allowed.
+
+## 10. Changes
+
+We may update these Terms. Continued use constitutes acceptance where permitted. The full Terms are in TERMS.md in the repository.
+
+## 11. Entire agreement
+
+These Terms, the Privacy Policy, and the MIT License (for source code) form the entire agreement regarding the Service.
+
+BY USING GRAPHQLGUARD, YOU AGREE TO THESE TERMS.
 `;
 
-export function LegalPage({ type }: { type: "privacy" | "terms" }) {
-  const content = type === "privacy" ? PRIVACY : TERMS;
-  const title = type === "privacy" ? "Privacy Policy" : "Terms & Conditions";
+const LICENSE_TEXT = `
+MIT License
+
+Copyright (c) 2026 Chaitanya Prabuddha
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+## Use of the hosted website
+
+Use of the hosted GraphQLGuard website and service is also subject to the Terms & Conditions and Privacy Policy on this site and in the GitHub repository. Those documents include additional limitations of liability, disclaimers, indemnification, and dispute resolution that apply to service use.
+
+## No legal advice
+
+This license and the Service do not create a lawyer-client relationship. GraphQLGuard output is not a substitute for professional review of API changes, security, or compliance obligations.
+`;
+
+function renderLegalContent(content: string) {
+  return content
+    .trim()
+    .split("\n")
+    .map((line, i) => {
+      if (line.startsWith("# ")) return null;
+      if (line.startsWith("## ")) {
+        return (
+          <h2 key={i} className="mt-6 text-lg font-semibold text-gray-900">
+            {line.replace("## ", "")}
+          </h2>
+        );
+      }
+      if (line.startsWith("**") && line.endsWith("**")) {
+        return (
+          <p key={i} className="font-medium text-gray-900">
+            {line.replace(/\*\*/g, "")}
+          </p>
+        );
+      }
+      if (line.trim().startsWith("- ")) {
+        return (
+          <li key={i} className="ml-4 list-disc text-gray-700">
+            {line.replace(/^- /, "")}
+          </li>
+        );
+      }
+      if (line.trim() === "") return <br key={i} />;
+      return <p key={i}>{line}</p>;
+    });
+}
+
+export function LegalPage({ type }: { type: "privacy" | "terms" | "license" }) {
+  const content =
+    type === "privacy" ? PRIVACY : type === "terms" ? TERMS : LICENSE_TEXT;
+  const title =
+    type === "privacy"
+      ? "Privacy Policy"
+      : type === "terms"
+        ? "Terms & Conditions"
+        : "License";
 
   return (
     <article className="prose prose-gray mx-auto max-w-3xl rounded-xl bg-white p-8 shadow-sm ring-1 ring-gray-100">
-      <h1 className="mb-6 text-2xl font-semibold text-gray-900">{title}</h1>
-      <div className="space-y-4 text-sm leading-relaxed text-gray-700 whitespace-pre-wrap">
-        {content.trim().split("\n").map((line, i) => {
-          if (line.startsWith("# ")) {
-            return null;
-          }
-          if (line.startsWith("## ")) {
-            return (
-              <h2 key={i} className="mt-6 text-lg font-semibold text-gray-900">
-                {line.replace("## ", "")}
-              </h2>
-            );
-          }
-          if (line.startsWith("**") && line.endsWith("**")) {
-            return (
-              <p key={i} className="font-medium text-gray-900">
-                {line.replace(/\*\*/g, "")}
-              </p>
-            );
-          }
-          if (line.trim() === "") return <br key={i} />;
-          return <p key={i}>{line}</p>;
-        })}
-      </div>
+      <h1 className="mb-2 text-2xl font-semibold text-gray-900">{title}</h1>
+      <p className="mb-6 text-xs text-gray-500">
+        This summary is provided for convenience. The authoritative legal text for the open-source
+        repository is{" "}
+        <a
+          href="https://github.com/chayprabs/graphql-breaking-changes/blob/main/PRIVACY_POLICY.md"
+          className="text-blue-600 underline"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          PRIVACY_POLICY.md
+        </a>
+        ,{" "}
+        <a
+          href="https://github.com/chayprabs/graphql-breaking-changes/blob/main/TERMS.md"
+          className="text-blue-600 underline"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          TERMS.md
+        </a>
+        , and{" "}
+        <a
+          href="https://github.com/chayprabs/graphql-breaking-changes/blob/main/LICENSE"
+          className="text-blue-600 underline"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          LICENSE
+        </a>{" "}
+        on GitHub.
+      </p>
+      <div className="space-y-3 text-sm leading-relaxed text-gray-700">{renderLegalContent(content)}</div>
     </article>
   );
 }

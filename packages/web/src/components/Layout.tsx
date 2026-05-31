@@ -68,12 +68,15 @@ export function Layout() {
       </main>
 
       <footer className="border-t border-gray-200 bg-white py-4">
-        <div className="mx-auto flex max-w-6xl justify-center gap-6 text-sm text-gray-500">
+        <div className="mx-auto flex max-w-6xl flex-wrap justify-center gap-x-6 gap-y-2 text-sm text-gray-500">
           <Link to="/privacy" className="hover:text-gray-800">
             Privacy Policy
           </Link>
           <Link to="/terms" className="hover:text-gray-800">
             Terms &amp; Conditions
+          </Link>
+          <Link to="/license" className="hover:text-gray-800">
+            License
           </Link>
         </div>
       </footer>

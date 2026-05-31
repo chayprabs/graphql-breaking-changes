@@ -78,9 +78,17 @@ node packages/cli/dist/cli.js packages/web/public/samples/small-old.graphql pack
 # exit code 1 if breaking changes exist
 ```
 
-## Privacy
+## Privacy and legal
 
-This tool is **browser-only**. No schema data is sent to a backend. See [Privacy Policy](/privacy) on the hosted site.
+This tool is **browser-only**. No schema data is sent to a backend for normal use.
+
+| Document | Hosted | Repository |
+|----------|--------|------------|
+| Privacy Policy | `/privacy` on the hosted site | [PRIVACY_POLICY.md](PRIVACY_POLICY.md) |
+| Terms & Conditions | `/terms` | [TERMS.md](TERMS.md) |
+| MIT License | `/license` | [LICENSE](LICENSE) |
+
+Use of the hosted site and software is subject to these documents, including disclaimers of warranties, limitations of liability, and indemnification.
 
 ## Community
 

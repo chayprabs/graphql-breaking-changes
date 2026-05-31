@@ -1,0 +1,10 @@
+node_modules
+**/node_modules
+**/dist
+.git
+**/.git
+packages/web/test-results
+packages/web/playwright-report
+**/*.tsbuildinfo
+.env
+.env.*

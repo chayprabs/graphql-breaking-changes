@@ -15,7 +15,7 @@ function XIcon({ className }: { className?: string }) {
 
 export function Layout() {
   return (
-    <div className="flex min-h-screen flex-col bg-[#fafafa]">
+    <div className="flex min-h-screen flex-col bg-white">
       <header className="border-b border-gray-200 bg-white">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
           <Link to="/" className="text-lg font-semibold tracking-tight text-gray-900">

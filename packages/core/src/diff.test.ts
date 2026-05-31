@@ -14,13 +14,9 @@ describe("diff", () => {
     const changes = diff(SAMPLE_OLD_SDL, SAMPLE_NEW_SDL);
     const breaking = changes.filter((c) => c.severity === "breaking");
     expect(breaking.length).toBeGreaterThanOrEqual(1);
-    const hasFieldRemoval = changes.some(
-      (c) => c.message.toLowerCase().includes("email") || c.path.includes("email"),
-    );
-    const hasRename = changes.some(
-      (c) => c.path.includes("fullName") || c.message.toLowerCase().includes("name"),
-    );
-    expect(hasFieldRemoval || hasRename).toBe(true);
+    expect(changes.some((c) => c.path === "User.email" && c.severity === "breaking")).toBe(true);
+    const nameRemoval = changes.find((c) => c.path === "User.name" && c.type === "FIELD_REMOVED");
+    expect(nameRemoval?.suggestedRename).toBe("fullName");
   });
 });
 

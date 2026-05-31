@@ -8,7 +8,6 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
-      "@graphql-guard/core": path.resolve(__dirname, "../core/src/index.ts"),
       graphql: path.resolve(__dirname, "../../node_modules/graphql"),
     },
     dedupe: ["graphql"],

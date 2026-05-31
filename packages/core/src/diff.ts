@@ -29,24 +29,53 @@ function levenshtein(a: string, b: string): number {
   return dp[m][n];
 }
 
-function suggestRename(path: string, removedNames: string[]): string | undefined {
-  const segment = path.split(".").pop() ?? path;
-  if (!segment || removedNames.length === 0) return undefined;
+function normalizeFieldName(name: string): string {
+  return name.toLowerCase().replace(/[_-]/g, "");
+}
 
-  let best: { name: string; distance: number } | undefined;
-  for (const name of removedNames) {
-    const distance = levenshtein(segment.toLowerCase(), name.toLowerCase());
-    if (distance > 3) continue;
-    if (!best || distance < best.distance) {
-      best = { name, distance };
+function suggestRenameForRemoval(
+  typeName: string,
+  removedField: string,
+  addedByType: Map<string, Set<string>>,
+): string | undefined {
+  const added = addedByType.get(typeName);
+  if (!added || added.size === 0) return undefined;
+
+  const removedNorm = normalizeFieldName(removedField);
+  let best: { name: string; score: number } | undefined;
+
+  for (const candidate of added) {
+    const distance = levenshtein(removedNorm, normalizeFieldName(candidate));
+    const contains =
+      removedNorm.includes(normalizeFieldName(candidate)) ||
+      normalizeFieldName(candidate).includes(removedNorm);
+    const score = contains ? Math.min(distance, 2) : distance;
+    if (score > 5) continue;
+    if (!best || score < best.score) {
+      best = { name: candidate, score };
     }
   }
+
   return best?.name;
 }
 
-function extractPath(description: string): string {
-  const match = description.match(/^[^:]+:\s*([^\s]+)/);
-  return match?.[1] ?? description;
+export function extractPath(description: string, changeType: string): string {
+  const fieldRemoved = description.match(/^(\w+(?:\.\w+)+)\s+was removed\.?$/);
+  if (fieldRemoved) return fieldRemoved[1];
+
+  const typeRemoved = description.match(/^(\w+)\s+was removed\.?$/);
+  if (typeRemoved && changeType.includes("TYPE")) return typeRemoved[1];
+
+  const argRemoved = description.match(/^(\w+\.\w+)\s+arg\s+(\w+)\s+was removed\.?$/);
+  if (argRemoved) return `${argRemoved[1]}.${argRemoved[2]}`;
+
+  const enumRemoved = description.match(/^(\w+)\s+was removed from enum type (\w+)\.?$/);
+  if (enumRemoved) return `${enumRemoved[2]}.${enumRemoved[1]}`;
+
+  const directiveRemoved = description.match(/^(\w+)\s+directive was removed\.?$/);
+  if (directiveRemoved) return directiveRemoved[1];
+
+  return description.split(" ")[0] ?? description;
 }
 
 function findSafeChanges(oldSchema: GraphQLSchema, newSchema: GraphQLSchema): SchemaChange[] {
@@ -149,6 +178,18 @@ function findSafeChanges(oldSchema: GraphQLSchema, newSchema: GraphQLSchema): Sc
   return safe;
 }
 
+function collectAddedFieldsByType(safeChanges: SchemaChange[]): Map<string, Set<string>> {
+  const map = new Map<string, Set<string>>();
+  for (const change of safeChanges) {
+    if (change.type !== "FIELD_ADDED") continue;
+    const [typeName, fieldName] = change.path.split(".");
+    if (!typeName || !fieldName) continue;
+    if (!map.has(typeName)) map.set(typeName, new Set());
+    map.get(typeName)!.add(fieldName);
+  }
+  return map;
+}
+
 export function diffSchemas(
   oldSchema: GraphQLSchema,
   newSchema: GraphQLSchema,
@@ -156,14 +197,14 @@ export function diffSchemas(
 ): SchemaChange[] {
   const breaking = findBreakingChanges(oldSchema, newSchema).map((c) => ({
     type: c.type,
-    path: extractPath(c.description),
+    path: extractPath(c.description, c.type),
     severity: "breaking" as Severity,
     message: c.description,
   }));
 
   const dangerous = findDangerousChanges(oldSchema, newSchema).map((c) => ({
     type: c.type,
-    path: extractPath(c.description),
+    path: extractPath(c.description, c.type),
     severity: "dangerous" as Severity,
     message: c.description,
   }));
@@ -172,19 +213,19 @@ export function diffSchemas(
     ? findSafeChanges(oldSchema, newSchema).filter((c) => c.type !== "DESCRIPTION_CHANGED")
     : findSafeChanges(oldSchema, newSchema);
 
-  const removedNames = breaking
-    .filter((c) => c.type.includes("REMOVED") || c.type.includes("Removed"))
-    .map((c) => c.path.split(".").pop()!)
-    .filter(Boolean);
+  const addedByType = collectAddedFieldsByType(safe);
 
-  return [...breaking, ...dangerous, ...safe].map((change) => ({
-    ...change,
-    suggestedRename:
-      change.severity === "breaking" &&
-      (change.type.includes("REMOVED") || change.message.toLowerCase().includes("removed"))
-        ? suggestRename(change.path, removedNames)
-        : undefined,
-  }));
+  return [...breaking, ...dangerous, ...safe].map((change) => {
+    if (change.type !== "FIELD_REMOVED" || change.severity !== "breaking") {
+      return change;
+    }
+    const [typeName, fieldName] = change.path.split(".");
+    const suggestedRename =
+      typeName && fieldName
+        ? suggestRenameForRemoval(typeName, fieldName, addedByType)
+        : undefined;
+    return { ...change, suggestedRename };
+  });
 }
 
 export function diff(oldSdl: string, newSdl: string, opts?: DiffOptions): SchemaChange[] {

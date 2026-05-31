@@ -58,6 +58,12 @@ const composition = composeFederation([{ name: "users", sdl: "..." }]);
 
 This tool is **browser-only**. No schema data is sent to a backend. See [Privacy Policy](/privacy) on the hosted site.
 
+## Community
+
+- [Contributing](CONTRIBUTING.md)
+- [Code of Conduct](CODE_OF_CONDUCT.md)
+- [Security](SECURITY.md)
+
 ## License
 
 MIT — see [LICENSE](LICENSE).

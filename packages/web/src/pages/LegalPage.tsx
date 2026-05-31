@@ -13,7 +13,7 @@ GraphQLGuard ("we", "the tool") is a browser-only application. Your GraphQL sche
 
 ## Local storage
 
-The app may store preferences (such as editor content) in your browser's local storage or IndexedDB if you enable persistence features. You can clear this data via your browser settings at any time.
+The app does not persist your schema data to any server. Your browser may retain page content only for the duration of your session unless you save it yourself.
 
 ## Third-party links
 
@@ -45,7 +45,7 @@ THE TOOL IS PROVIDED "AS IS" AND "AS AVAILABLE" WITHOUT WARRANTIES OF ANY KIND, 
 
 ## Limitation of liability
 
-TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE AUTHORS AND CONTRIBUTORS SHALL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, OR ANY LOSS OF PROFITS, DATA, OR GOODWILL, ARISING FROM YOUR USE OF THIS TOOL, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
+TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE PROJECT MAINTAINERS AND CONTRIBUTORS SHALL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, OR ANY LOSS OF PROFITS, DATA, OR GOODWILL, ARISING FROM YOUR USE OF THIS TOOL, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
 
 ## Your responsibility
 

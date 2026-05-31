@@ -13,8 +13,6 @@ jobs:
       - uses: actions/checkout@v4
 
       - uses: pnpm/action-setup@v4
-        with:
-          version: 9
 
       - uses: actions/setup-node@v4
         with:
@@ -40,6 +38,10 @@ jobs:
         run: |
           SIZE=$(du -sb packages/web/dist/assets/*.js 2>/dev/null | awk '{s+=$1} END {print s+0}')
           echo "Total JS bytes: $SIZE"
+          if [ "$SIZE" -eq 0 ]; then
+            echo "No JS bundle found in dist"
+            exit 1
+          fi
           if [ "$SIZE" -gt 1572864 ]; then
             echo "Bundle exceeds 1.5 MB budget"
             exit 1

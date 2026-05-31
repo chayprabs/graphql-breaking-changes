@@ -18,7 +18,7 @@ import {
   SAMPLE_NEW_SDL,
   SAMPLE_OPERATION,
   FEDERATION_SUBGRAPHS,
-} from "@graphql-guard/core/fixtures/samples";
+} from "../samples";
 import { Download, Play, Upload } from "lucide-react";
 
 type Tab = "diff" | "coverage" | "federation" | "lint";

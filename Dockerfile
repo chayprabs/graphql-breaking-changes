@@ -4,7 +4,7 @@ WORKDIR /app
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml* .npmrc ./
 COPY packages/core/package.json packages/core/
 COPY packages/web/package.json packages/web/
-RUN pnpm install --frozen-lockfile || pnpm install
+RUN pnpm install --frozen-lockfile
 COPY . .
 RUN pnpm --filter @graphql-guard/core build && pnpm --filter @graphql-guard/web build
 

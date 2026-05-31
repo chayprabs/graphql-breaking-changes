@@ -1,0 +1,21 @@
+{
+  "name": "graphql-breaking-changes",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Diff two GraphQL schemas online and find breaking and dangerous changes - operation coverage and federation composition checks.",
+  "license": "MIT",
+  "scripts": {
+    "build": "pnpm -r build",
+    "dev": "pnpm --filter @graphql-guard/web dev",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "test:e2e": "pnpm --filter @graphql-guard/web test:e2e",
+    "format": "prettier --write ."
+  },
+  "engines": {
+    "node": ">=22",
+    "pnpm": ">=9"
+  },
+  "packageManager": "pnpm@9.15.0"
+}

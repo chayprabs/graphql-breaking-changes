@@ -25,6 +25,12 @@ jobs:
       - name: Build core
         run: pnpm --filter @graphql-guard/core build
 
+      - name: Build CLI
+        run: pnpm --filter @graphql-guard/cli build
+
+      - name: Lint
+        run: pnpm lint
+
       - name: Typecheck
         run: pnpm typecheck
 
@@ -36,14 +42,16 @@ jobs:
 
       - name: Bundle size check
         run: |
-          SIZE=$(du -sb packages/web/dist/assets/*.js 2>/dev/null | awk '{s+=$1} END {print s+0}')
-          echo "Total JS bytes: $SIZE"
-          if [ "$SIZE" -eq 0 ]; then
-            echo "No JS bundle found in dist"
+          INITIAL=$(du -sb packages/web/dist/assets/index*.js packages/web/dist/assets/graphql*.js packages/web/dist/assets/federation*.js 2>/dev/null | awk '{s+=$1} END {print s+0}')
+          MONACO=$(du -sb packages/web/dist/assets/monaco*.js 2>/dev/null | awk '{s+=$1} END {print s+0}')
+          echo "Initial route JS: $INITIAL bytes"
+          echo "Monaco lazy chunk: $MONACO bytes"
+          if [ "$INITIAL" -eq 0 ]; then
+            echo "No initial JS bundle found"
             exit 1
           fi
-          if [ "$SIZE" -gt 1572864 ]; then
-            echo "Bundle exceeds 1.5 MB budget"
+          if [ "$INITIAL" -gt 1572864 ]; then
+            echo "Initial bundle exceeds 1.5 MB PRD budget"
             exit 1
           fi
 

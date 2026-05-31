@@ -20,7 +20,7 @@ export function parseSchemaInput(input: string): GraphQLSchema {
     return lexicographicSortSchema(buildClientSchema(introspection));
   }
 
-  return lexicographicSortSchema(buildSchema(trimmed, { assumeValid: false }));
+  return lexicographicSortSchema(buildSchema(trimmed, { assumeValidSDL: true }));
 }
 
 export function schemaToSdl(schema: GraphQLSchema): string {

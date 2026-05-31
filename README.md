@@ -6,11 +6,18 @@
 
 ## Features
 
-- **Schema diff** — Paste two SDL documents or introspection JSON; get breaking, dangerous, and safe changes with optional rename suggestions.
-- **Operation coverage** — Upload `.graphql` operation files and validate them against your new schema.
-- **Federation** — Compose Apollo Federation v2 subgraphs and surface composition errors.
+- **Schema diff** — Paste two SDL documents or introspection JSON; get breaking, dangerous, and safe changes with rename suggestions (`name` → `fullName`).
+- **Operation coverage** — Drop multiple `.graphql` operation files; validate against the new schema with per-operation reasons.
+- **Federation** — Compose Apollo Federation v2 supergraphs **or** diff subgraph SDLs in isolation (F4.2).
 - **Lint** — Naming, deprecation, and description rules (Spectral-style defaults).
-- **Reports** — Export HTML, JSON, or Markdown changelogs.
+- **Reports** — Export HTML, JSON, or Markdown from any tab (diff, coverage, lint, federation).
+- **Monaco editors** — GraphQL syntax highlighting (lazy-loaded).
+- **Web Worker** — Diff and composition run off the main thread.
+- **PWA** — Installable, works offline after first load.
+- **Privacy** — Browser-only; optional localStorage for editor state; one-click clear.
+- **CLI** — `npx graphql-guard old.graphql new.graphql` exits `1` on breaking changes.
+
+Sample SDL files live in `packages/web/public/samples/`.
 
 ## Quick start
 
@@ -47,11 +54,28 @@ packages/
 ## Library API
 
 ```ts
-import { diff, operationCoverage, composeFederation } from "@graphql-guard/core";
+import {
+  diff,
+  operationCoverage,
+  composeFederation,
+  diffSubgraphs,
+  lintSchema,
+  formatSdl,
+  reportToJson,
+} from "@graphql-guard/core";
 
 const changes = diff(oldSdl, newSdl);
 const coverage = operationCoverage([operationSdl], newSdl);
 const composition = composeFederation([{ name: "users", sdl: "..." }]);
+const subgraphChanges = diffSubgraphs(oldSubgraphs, newSubgraphs);
+```
+
+## CLI
+
+```bash
+pnpm --filter @graphql-guard/cli build
+node packages/cli/dist/cli.js samples/small-old.graphql samples/small-new.graphql
+# exit code 1 if breaking changes exist
 ```
 
 ## Privacy

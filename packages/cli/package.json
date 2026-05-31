@@ -1,0 +1,21 @@
+{
+  "name": "@graphql-guard/cli",
+  "version": "1.0.0",
+  "description": "CLI for GraphQLGuard schema diff",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "graphql-guard": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@graphql-guard/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.2"
+  }
+}

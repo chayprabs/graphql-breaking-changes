@@ -1,9 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 import {
-  diff,
-  operationCoverage,
-  composeFederation,
-  lintSchema,
+  formatSdl,
   reportToHtml,
   reportToJson,
   reportToMarkdown,
@@ -12,6 +9,8 @@ import {
   type OperationCoverage,
   type CompositionResult,
   type LintIssue,
+  type SubgraphDiffResult,
+  type ReportPayload,
 } from "@graphql-guard/core";
 import {
   SAMPLE_OLD_SDL,
@@ -19,27 +18,54 @@ import {
   SAMPLE_OPERATION,
   FEDERATION_SUBGRAPHS,
 } from "../samples";
-import { Download, Play, Upload } from "lucide-react";
+import { SchemaEditor } from "./SchemaEditor";
+import { useEngine } from "../hooks/useEngine";
+import { usePersistedState, clearPersistedData } from "../hooks/usePersistedState";
+import { Download, Play, ArrowLeftRight, Trash2, Wand2 } from "lucide-react";
 
 type Tab = "diff" | "coverage" | "federation" | "lint";
+type FederationMode = "compose" | "subgraph-diff";
+
+function parseSubgraphs(text: string) {
+  return text
+    .split(/\n---\n/)
+    .map((p) => p.trim())
+    .filter(Boolean)
+    .map((part) => {
+      const nameMatch = part.match(/^(\w+):\s*\n?/);
+      const name = nameMatch?.[1] ?? "subgraph";
+      const sdl = part.replace(/^(\w+):\s*\n?/, "").trim();
+      return { name, sdl };
+    });
+}
 
 interface PlaygroundProps {
   initialTab?: Tab;
 }
 
 export function Playground({ initialTab = "diff" }: PlaygroundProps) {
+  const { run } = useEngine();
   const [tab, setTab] = useState<Tab>(initialTab);
-  const [oldSdl, setOldSdl] = useState(SAMPLE_OLD_SDL);
-  const [newSdl, setNewSdl] = useState(SAMPLE_NEW_SDL);
-  const [operations, setOperations] = useState(SAMPLE_OPERATION);
-  const [subgraphs, setSubgraphs] = useState(
+  const [oldSdl, setOldSdl] = usePersistedState("oldSdl", SAMPLE_OLD_SDL);
+  const [newSdl, setNewSdl] = usePersistedState("newSdl", SAMPLE_NEW_SDL);
+  const [operations, setOperations] = usePersistedState("operations", SAMPLE_OPERATION);
+  const [subgraphs, setSubgraphs] = usePersistedState(
+    "subgraphs",
     `users:\n${FEDERATION_SUBGRAPHS.users}\n\n---\n\nproducts:\n${FEDERATION_SUBGRAPHS.products}`,
   );
+  const [oldSubgraphs, setOldSubgraphs] = usePersistedState("oldSubgraphs", `users:\n${FEDERATION_SUBGRAPHS.users}`);
+  const [newSubgraphs, setNewSubgraphs] = usePersistedState(
+    "newSubgraphs",
+    `users:\n${FEDERATION_SUBGRAPHS.users.replace("name: String!", "displayName: String!")}`,
+  );
+  const [federationMode, setFederationMode] = useState<FederationMode>("compose");
   const [changes, setChanges] = useState<SchemaChange[]>([]);
   const [coverage, setCoverage] = useState<OperationCoverage | null>(null);
   const [composition, setComposition] = useState<CompositionResult | null>(null);
+  const [subgraphDiffs, setSubgraphDiffs] = useState<SubgraphDiffResult[]>([]);
   const [lintIssues, setLintIssues] = useState<LintIssue[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
   const [ran, setRan] = useState(false);
 
   const counts = useMemo(
@@ -51,64 +77,113 @@ export function Playground({ initialTab = "diff" }: PlaygroundProps) {
     [changes],
   );
 
-  const runDiff = useCallback(() => {
+  const reportPayload = useCallback((): ReportPayload => {
+    const payload: ReportPayload = {};
+    if (tab === "diff" || changes.length) payload.changes = changes;
+    if (coverage) payload.coverage = coverage;
+    if (lintIssues.length) payload.lint = lintIssues;
+    if (subgraphDiffs.length) payload.subgraphDiffs = subgraphDiffs;
+    if (composition) {
+      payload.composition = {
+        success: composition.success,
+        errors: composition.errors,
+      };
+    }
+    return payload;
+  }, [tab, changes, coverage, lintIssues, subgraphDiffs, composition]);
+
+  const exportReport = (format: "json" | "md" | "html") => {
+    const payload = reportPayload();
+    if (format === "json") {
+      downloadBlob(reportToJson(payload), "graphql-guard-report.json", "application/json");
+    } else if (format === "md") {
+      downloadBlob(reportToMarkdown(payload), "graphql-guard-report.md", "text/markdown");
+    } else {
+      downloadBlob(reportToHtml(payload), "graphql-guard-report.html", "text/html");
+    }
+  };
+
+  const runDiff = useCallback(async () => {
     setError(null);
+    setLoading(true);
     try {
-      const result = diff(oldSdl, newSdl);
+      const result = await run<SchemaChange[]>("diff", oldSdl, newSdl);
       setChanges(result);
       setRan(true);
       setTab("diff");
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setLoading(false);
     }
-  }, [oldSdl, newSdl]);
+  }, [oldSdl, newSdl, run]);
 
-  const runCoverage = useCallback(() => {
+  const runCoverage = useCallback(async () => {
     setError(null);
+    setLoading(true);
     try {
       const ops = operations
         .split(/(?=query |mutation |subscription )/i)
         .map((s) => s.trim())
         .filter(Boolean);
-      const result = operationCoverage(ops.length ? ops : [operations], newSdl);
+      const result = await run<OperationCoverage>(
+        "operationCoverage",
+        ops.length ? ops : [operations],
+        newSdl,
+      );
       setCoverage(result);
       setRan(true);
       setTab("coverage");
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setLoading(false);
     }
-  }, [operations, newSdl]);
+  }, [operations, newSdl, run]);
 
-  const runFederation = useCallback(() => {
+  const runFederation = useCallback(async () => {
     setError(null);
+    setLoading(true);
     try {
-      const parts = subgraphs.split(/\n---\n/).map((p) => p.trim()).filter(Boolean);
-      const parsed = parts.map((part) => {
-        const nameMatch = part.match(/^(\w+):\s*\n?/);
-        const name = nameMatch?.[1] ?? "subgraph";
-        const sdl = part.replace(/^(\w+):\s*\n?/, "").trim();
-        return { name, sdl };
-      });
-      const result = composeFederation(parsed);
-      setComposition(result);
+      if (federationMode === "compose") {
+        const result = await run<CompositionResult>(
+          "composeFederation",
+          parseSubgraphs(subgraphs),
+        );
+        setComposition(result);
+        setSubgraphDiffs([]);
+      } else {
+        const result = await run<SubgraphDiffResult[]>(
+          "diffSubgraphs",
+          parseSubgraphs(oldSubgraphs),
+          parseSubgraphs(newSubgraphs),
+        );
+        setSubgraphDiffs(result);
+        setComposition(null);
+      }
       setRan(true);
       setTab("federation");
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setLoading(false);
     }
-  }, [subgraphs]);
+  }, [federationMode, subgraphs, oldSubgraphs, newSubgraphs, run]);
 
-  const runLint = useCallback(() => {
+  const runLint = useCallback(async () => {
     setError(null);
+    setLoading(true);
     try {
-      const result = lintSchema(newSdl);
+      const result = await run<LintIssue[]>("lintSchema", newSdl);
       setLintIssues(result);
       setRan(true);
       setTab("lint");
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setLoading(false);
     }
-  }, [newSdl]);
+  }, [newSdl, run]);
 
   const handlePrimaryAction = () => {
     void (tab === "coverage"
@@ -127,8 +202,42 @@ export function Playground({ initialTab = "diff" }: PlaygroundProps) {
     setSubgraphs(
       `users:\n${FEDERATION_SUBGRAPHS.users}\n\n---\n\nproducts:\n${FEDERATION_SUBGRAPHS.products}`,
     );
+    setOldSubgraphs(`users:\n${FEDERATION_SUBGRAPHS.users}`);
+    setNewSubgraphs(
+      `users:\n${FEDERATION_SUBGRAPHS.users.replace("name: String!", "displayName: String!")}`,
+    );
     setError(null);
     setRan(false);
+  };
+
+  const swapSchemas = () => {
+    const tmp = oldSdl;
+    setOldSdl(newSdl);
+    setNewSdl(tmp);
+  };
+
+  const formatSchema = (which: "old" | "new") => {
+    try {
+      if (which === "old") setOldSdl(formatSdl(oldSdl));
+      else setNewSdl(formatSdl(newSdl));
+      setError(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  };
+
+  const handleOpsDrop = (files: FileList) => {
+    void Promise.all(
+      Array.from(files).map(
+        (f) =>
+          new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(String(reader.result ?? ""));
+            reader.onerror = () => reject(reader.error);
+            reader.readAsText(f);
+          }),
+      ),
+    ).then((parts) => setOperations(parts.join("\n\n")));
   };
 
   return (
@@ -158,65 +267,149 @@ export function Playground({ initialTab = "diff" }: PlaygroundProps) {
         >
           Load samples
         </button>
+        <button
+          type="button"
+          onClick={() => {
+            clearPersistedData();
+            loadSample();
+          }}
+          className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-sm text-gray-600 ring-1 ring-gray-200 hover:bg-white"
+          title="Clear saved editor data"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+          Clear saved data
+        </button>
       </div>
 
       {tab === "diff" && (
-        <div className="grid gap-4 md:grid-cols-2">
-          <SchemaEditor label="Old schema (SDL or introspection JSON)" value={oldSdl} onChange={setOldSdl} />
-          <SchemaEditor label="New schema (SDL or introspection JSON)" value={newSdl} onChange={setNewSdl} />
-        </div>
+        <>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={swapSchemas}
+              className="inline-flex items-center gap-1 rounded-lg bg-white px-3 py-1.5 text-xs text-gray-700 ring-1 ring-gray-200 hover:bg-gray-50"
+            >
+              <ArrowLeftRight className="h-3.5 w-3.5" />
+              Swap schemas
+            </button>
+            <button
+              type="button"
+              onClick={() => formatSchema("old")}
+              className="inline-flex items-center gap-1 rounded-lg bg-white px-3 py-1.5 text-xs text-gray-700 ring-1 ring-gray-200 hover:bg-gray-50"
+            >
+              <Wand2 className="h-3.5 w-3.5" />
+              Format old
+            </button>
+            <button
+              type="button"
+              onClick={() => formatSchema("new")}
+              className="inline-flex items-center gap-1 rounded-lg bg-white px-3 py-1.5 text-xs text-gray-700 ring-1 ring-gray-200 hover:bg-gray-50"
+            >
+              <Wand2 className="h-3.5 w-3.5" />
+              Format new
+            </button>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <SchemaEditor
+              label="Old schema (SDL or introspection JSON)"
+              value={oldSdl}
+              onChange={setOldSdl}
+            />
+            <SchemaEditor
+              label="New schema (SDL or introspection JSON)"
+              value={newSdl}
+              onChange={setNewSdl}
+            />
+          </div>
+        </>
       )}
 
       {tab === "coverage" && (
         <div className="grid gap-4 md:grid-cols-2">
-          <SchemaEditor label="Operations (.graphql)" value={operations} onChange={setOperations} rows={12} />
+          <SchemaEditor
+            label="Operations (.graphql) — drop multiple files"
+            value={operations}
+            onChange={setOperations}
+            height="320px"
+            onFilesDrop={handleOpsDrop}
+          />
           <SchemaEditor label="Target schema (new)" value={newSdl} onChange={setNewSdl} />
         </div>
       )}
 
       {tab === "federation" && (
-        <SchemaEditor
-          label="Subgraphs (name: then SDL, separate with ---)"
-          value={subgraphs}
-          onChange={setSubgraphs}
-          rows={16}
-        />
+        <div className="space-y-3">
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setFederationMode("compose")}
+              className={`rounded-lg px-3 py-1 text-sm ${federationMode === "compose" ? "bg-blue-600 text-white" : "bg-white ring-1 ring-gray-200"}`}
+            >
+              Compose supergraph
+            </button>
+            <button
+              type="button"
+              onClick={() => setFederationMode("subgraph-diff")}
+              className={`rounded-lg px-3 py-1 text-sm ${federationMode === "subgraph-diff" ? "bg-blue-600 text-white" : "bg-white ring-1 ring-gray-200"}`}
+            >
+              Subgraph diff
+            </button>
+          </div>
+          {federationMode === "compose" ? (
+            <SchemaEditor
+              label="Subgraphs (name: then SDL, separate with ---)"
+              value={subgraphs}
+              onChange={setSubgraphs}
+              height="360px"
+            />
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2">
+              <SchemaEditor
+                label="Old subgraphs"
+                value={oldSubgraphs}
+                onChange={setOldSubgraphs}
+                height="360px"
+              />
+              <SchemaEditor
+                label="New subgraphs"
+                value={newSubgraphs}
+                onChange={setNewSubgraphs}
+                height="360px"
+              />
+            </div>
+          )}
+        </div>
       )}
 
       {tab === "lint" && (
-        <SchemaEditor label="Schema to lint" value={newSdl} onChange={setNewSdl} rows={14} />
+        <SchemaEditor label="Schema to lint" value={newSdl} onChange={setNewSdl} height="360px" />
       )}
 
       <div className="flex flex-wrap gap-3">
         <button
           type="button"
           onClick={handlePrimaryAction}
-          className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-blue-700"
+          disabled={loading}
+          className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-blue-700 disabled:opacity-60"
         >
           <Play className="h-4 w-4" />
-          {tab === "diff" && "Run diff"}
-          {tab === "coverage" && "Check operations"}
-          {tab === "federation" && "Compose subgraphs"}
-          {tab === "lint" && "Lint schema"}
+          {loading
+            ? "Running…"
+            : tab === "diff"
+              ? "Run diff"
+              : tab === "coverage"
+                ? "Check operations"
+                : tab === "federation"
+                  ? federationMode === "compose"
+                    ? "Compose subgraphs"
+                    : "Diff subgraphs"
+                  : "Lint schema"}
         </button>
-        {tab === "diff" && ran && (
+        {ran && (
           <>
-            <ExportButton
-              label="JSON"
-              onClick={() => downloadBlob(reportToJson(changes), "graphql-diff.json", "application/json")}
-            />
-            <ExportButton
-              label="Markdown"
-              onClick={() =>
-                downloadBlob(reportToMarkdown(changes), "graphql-changelog.md", "text/markdown")
-              }
-            />
-            <ExportButton
-              label="HTML"
-              onClick={() =>
-                downloadBlob(reportToHtml(changes, coverage ?? undefined), "graphql-report.html", "text/html")
-              }
-            />
+            <ExportButton label="JSON" onClick={() => exportReport("json")} />
+            <ExportButton label="Markdown" onClick={() => exportReport("md")} />
+            <ExportButton label="HTML" onClick={() => exportReport("html")} />
           </>
         )}
       </div>
@@ -227,114 +420,116 @@ export function Playground({ initialTab = "diff" }: PlaygroundProps) {
         </div>
       )}
 
-      {ran && tab === "diff" && (
-        <ResultsPanel counts={counts} changes={changes} />
+      {ran && tab === "diff" && <ResultsPanel counts={counts} changes={changes} />}
+
+      {ran && tab === "coverage" && coverage && <CoveragePanel coverage={coverage} />}
+
+      {ran && tab === "federation" && federationMode === "compose" && composition && (
+        <CompositionPanel composition={composition} />
       )}
 
-      {ran && tab === "coverage" && coverage && (
-        <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-          <h3 className="mb-2 font-medium text-gray-900">
-            {coverage.valid}/{coverage.total} operations valid
-          </h3>
-          <ul className="space-y-2 text-sm">
-            {coverage.items.map((item) => (
-              <li
-                key={item.name}
-                className={`rounded-lg px-3 py-2 ${item.valid ? "bg-green-50 text-green-900" : "bg-red-50 text-red-900"}`}
-              >
-                <span className="font-medium">{item.name}</span>
-                {!item.valid && (
-                  <ul className="mt-1 list-disc pl-4 text-red-800">
-                    {item.reasons.map((r, i) => (
-                      <li key={i}>{r}</li>
-                    ))}
-                  </ul>
-                )}
-              </li>
-            ))}
-          </ul>
-        </div>
+      {ran && tab === "federation" && federationMode === "subgraph-diff" && (
+        <SubgraphDiffPanel diffs={subgraphDiffs} />
       )}
 
-      {ran && tab === "federation" && composition && (
-        <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-          {composition.success ? (
-            <>
-              <p className="mb-2 font-medium text-green-800">Composition succeeded</p>
-              <pre className="max-h-64 overflow-auto rounded-lg bg-gray-50 p-3 text-xs">
-                {composition.supergraphSdl?.slice(0, 2000)}
-                {(composition.supergraphSdl?.length ?? 0) > 2000 ? "\n…" : ""}
-              </pre>
-            </>
-          ) : (
-            <>
-              <p className="mb-2 font-medium text-red-800">Composition failed</p>
-              <ul className="space-y-1 text-sm text-red-900">
-                {composition.errors.map((e, i) => (
-                  <li key={i}>{e.message}</li>
+      {ran && tab === "lint" && <LintPanel issues={lintIssues} />}
+    </div>
+  );
+}
+
+function CoveragePanel({ coverage }: { coverage: OperationCoverage }) {
+  return (
+    <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+      <h3 className="mb-2 font-medium text-gray-900">
+        {coverage.valid}/{coverage.total} operations valid
+      </h3>
+      <ul className="space-y-2 text-sm">
+        {coverage.items.map((item) => (
+          <li
+            key={item.name}
+            className={`rounded-lg px-3 py-2 ${item.valid ? "bg-green-50 text-green-900" : "bg-red-50 text-red-900"}`}
+          >
+            <span className="font-medium">{item.name}</span>
+            {!item.valid && (
+              <ul className="mt-1 list-disc pl-4 text-red-800">
+                {item.reasons.map((r, i) => (
+                  <li key={i}>{r}</li>
                 ))}
               </ul>
-            </>
-          )}
-        </div>
-      )}
+            )}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
 
-      {ran && tab === "lint" && (
-        <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-          <h3 className="mb-2 font-medium">{lintIssues.length} lint issues</h3>
-          {lintIssues.length === 0 ? (
-            <p className="text-sm text-green-700">No issues found.</p>
-          ) : (
-            <ul className="max-h-72 space-y-1 overflow-auto text-sm">
-              {lintIssues.map((issue, i) => (
-                <li key={i} className="rounded bg-amber-50 px-2 py-1 text-amber-950">
-                  <span className="font-medium">{issue.rule}</span> — {issue.path}: {issue.message}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+function CompositionPanel({ composition }: { composition: CompositionResult }) {
+  return (
+    <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+      {composition.success ? (
+        <>
+          <p className="mb-2 font-medium text-green-800">Composition succeeded</p>
+          <pre className="max-h-64 overflow-auto rounded-lg bg-gray-50 p-3 text-xs">
+            {composition.supergraphSdl?.slice(0, 4000)}
+            {(composition.supergraphSdl?.length ?? 0) > 4000 ? "\n…" : ""}
+          </pre>
+        </>
+      ) : (
+        <>
+          <p className="mb-2 font-medium text-red-800">Composition failed</p>
+          <ul className="space-y-1 text-sm text-red-900">
+            {composition.errors.map((e, i) => (
+              <li key={i}>{e.message}</li>
+            ))}
+          </ul>
+        </>
       )}
     </div>
   );
 }
 
-function SchemaEditor({
-  label,
-  value,
-  onChange,
-  rows = 10,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  rows?: number;
-}) {
-  const onFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => onChange(String(reader.result ?? ""));
-    reader.readAsText(file);
-  };
-
+function SubgraphDiffPanel({ diffs }: { diffs: SubgraphDiffResult[] }) {
   return (
-    <div className="flex flex-col gap-1">
-      <div className="flex items-center justify-between">
-        <label className="text-sm font-medium text-gray-700">{label}</label>
-        <label className="inline-flex cursor-pointer items-center gap-1 text-xs text-gray-500 hover:text-gray-800">
-          <Upload className="h-3.5 w-3.5" />
-          Upload
-          <input type="file" accept=".graphql,.gql,.json,.txt" className="hidden" onChange={onFile} />
-        </label>
-      </div>
-      <textarea
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        rows={rows}
-        spellCheck={false}
-        className="w-full resize-y rounded-xl border border-gray-200 bg-white p-3 font-mono text-xs leading-relaxed text-gray-900 shadow-sm outline-none ring-blue-500 focus:ring-2"
-      />
+    <div className="space-y-3">
+      {diffs.map((sg) => (
+        <div key={sg.name} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+          <h3 className="mb-2 font-medium">
+            {sg.name} — {sg.changes.length} change{sg.changes.length === 1 ? "" : "s"}
+          </h3>
+          {sg.changes.length === 0 ? (
+            <p className="text-sm text-gray-500">No changes.</p>
+          ) : (
+            <ul className="max-h-48 space-y-1 overflow-auto text-sm">
+              {sg.changes.map((c, i) => (
+                <li key={i} className="text-gray-700">
+                  <span className="font-medium text-gray-900">[{c.severity}]</span> {c.path}:{" "}
+                  {c.message}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function LintPanel({ issues }: { issues: LintIssue[] }) {
+  return (
+    <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+      <h3 className="mb-2 font-medium">{issues.length} lint issues</h3>
+      {issues.length === 0 ? (
+        <p className="text-sm text-green-700">No issues found.</p>
+      ) : (
+        <ul className="max-h-72 space-y-1 overflow-auto text-sm">
+          {issues.map((issue, i) => (
+            <li key={i} className="rounded bg-amber-50 px-2 py-1 text-amber-950">
+              <span className="font-medium">{issue.rule}</span> — {issue.path}: {issue.message}
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
@@ -360,15 +555,32 @@ function ResultsPanel({
   changes: SchemaChange[];
 }) {
   const [filter, setFilter] = useState<"all" | "breaking" | "dangerous" | "safe">("all");
-  const filtered =
-    filter === "all" ? changes : changes.filter((c) => c.severity === filter);
+  const filtered = filter === "all" ? changes : changes.filter((c) => c.severity === filter);
 
   return (
     <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
       <div className="flex flex-wrap gap-3 border-b border-gray-100 px-4 py-3">
-        <Badge label="Breaking" count={counts.breaking} color="red" active={filter === "breaking"} onClick={() => setFilter(filter === "breaking" ? "all" : "breaking")} />
-        <Badge label="Dangerous" count={counts.dangerous} color="amber" active={filter === "dangerous"} onClick={() => setFilter(filter === "dangerous" ? "all" : "dangerous")} />
-        <Badge label="Safe" count={counts.safe} color="green" active={filter === "safe"} onClick={() => setFilter(filter === "safe" ? "all" : "safe")} />
+        <Badge
+          label="Breaking"
+          count={counts.breaking}
+          color="red"
+          active={filter === "breaking"}
+          onClick={() => setFilter(filter === "breaking" ? "all" : "breaking")}
+        />
+        <Badge
+          label="Dangerous"
+          count={counts.dangerous}
+          color="amber"
+          active={filter === "dangerous"}
+          onClick={() => setFilter(filter === "dangerous" ? "all" : "dangerous")}
+        />
+        <Badge
+          label="Safe"
+          count={counts.safe}
+          color="green"
+          active={filter === "safe"}
+          onClick={() => setFilter(filter === "safe" ? "all" : "safe")}
+        />
         <span className="ml-auto text-sm text-gray-500">{filtered.length} changes</span>
       </div>
       <ul className="max-h-96 divide-y divide-gray-100 overflow-auto">

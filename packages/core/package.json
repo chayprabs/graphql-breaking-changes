@@ -19,7 +19,7 @@
   "files": ["dist"],
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "lint": "eslint src --max-warnings 0 || true",
+    "lint": "echo 'lint via root eslint'",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run"
   },

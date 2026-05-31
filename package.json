@@ -2,12 +2,13 @@
   "name": "graphql-breaking-changes",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "description": "Diff two GraphQL schemas online and find breaking and dangerous changes - operation coverage and federation composition checks.",
   "license": "MIT",
   "scripts": {
     "build": "pnpm -r build",
     "dev": "pnpm --filter @graphql-guard/web dev",
-    "lint": "pnpm -r lint",
+    "lint": "eslint . && pnpm -r lint",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
     "test:e2e": "pnpm --filter @graphql-guard/web test:e2e",
@@ -24,6 +25,9 @@
     }
   },
   "devDependencies": {
-    "graphql": "16.10.0"
+    "@eslint/js": "^9.17.0",
+    "eslint": "^9.17.0",
+    "graphql": "16.10.0",
+    "typescript-eslint": "^8.18.2"
   }
 }

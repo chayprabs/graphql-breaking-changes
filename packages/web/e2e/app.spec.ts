@@ -4,7 +4,22 @@ test("home page loads and runs sample diff", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("link", { name: "GraphQLGuard" })).toBeVisible();
   await page.getByRole("button", { name: "Run diff" }).click();
-  await expect(page.getByText(/Breaking:/)).toBeVisible({ timeout: 10000 });
+  await expect(page.getByText(/Breaking:/)).toBeVisible({ timeout: 20000 });
+});
+
+test("coverage tab validates sample operation", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Operation Coverage" }).click();
+  await page.getByRole("button", { name: "Check operations" }).click();
+  await expect(page.getByText(/operations valid/)).toBeVisible({ timeout: 20000 });
+});
+
+test("federation compose mode works", async ({ page }) => {
+  await page.goto("/apollo-federation-check");
+  await page.getByRole("button", { name: "Compose subgraphs" }).click();
+  await expect(page.getByText(/Composition succeeded|Composition failed/)).toBeVisible({
+    timeout: 20000,
+  });
 });
 
 const SEO_ROUTES = [

@@ -1,0 +1,5 @@
+Contact: https://github.com/chayprabs/graphql-breaking-changes/security/advisories/new
+Expires: 2027-12-31T23:59:59.000Z
+Preferred-Languages: en
+Canonical: https://graphql-guard.dev/security.txt
+Policy: https://github.com/chayprabs/graphql-breaking-changes/blob/main/SECURITY.md

@@ -13,7 +13,7 @@ GraphQLGuard ("we", "the tool") is a browser-only application. Your GraphQL sche
 
 ## Local storage
 
-The app does not persist your schema data to any server. Your browser may retain page content only for the duration of your session unless you save it yourself.
+The app does not persist your schema data to any server. Editor content may be saved in your browser local storage on this device so you can continue later. Use "Clear saved data" in the playground to remove it.
 
 ## Third-party links
 

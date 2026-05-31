@@ -6,7 +6,6 @@ import {
   isInputObjectType,
   isInterfaceType,
   isObjectType,
-  isScalarType,
   isUnionType,
 } from "graphql";
 import { parseSchemaInput } from "./parse.js";
